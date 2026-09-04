@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@vercel/blob": "^2.6.1"
+    "@vercel/blob": "latest"
   },
   "devDependencies": {
-    "@types/node": "^26.4.1",
-    "typescript": "^7.0.2"
+    "@types/node": "latest",
+    "typescript": "6.0.3"
   }
 }
