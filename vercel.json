@@ -4,6 +4,7 @@
   "services": {
     "revora": {
       "root": "app/",
+      "runtime": "container",
       "entrypoint": "Dockerfile.vercel"
     },
 
