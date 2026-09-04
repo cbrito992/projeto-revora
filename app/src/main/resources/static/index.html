@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Revora - Revisão Ortogramatical e Normas</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+</head>
+
+<body>
+
+    <div class="app-page">
+
+        <header class="app-header">
+
+            <h1>Revora</h1>
+
+            <p class="subtitle">
+                Revisão Ortogramatical e Validador de Normas
+            </p>
+
+        </header>
+
+
+        <main class="app-main">
+
+            <!-- ÁREA PRINCIPAL -->
+
+            <section class="upload-panel">
+
+                <div class="section-heading">
+
+                    <h2>Revisar documento</h2>
+
+                    <p>
+                        Envie o modelo de referência e o documento que
+                        deseja analisar.
+                    </p>
+
+                </div>
+
+
+                <form id="uploadForm">
+
+                    <div class="form-group">
+
+                        <label for="template">
+                            Arquivo de Template
+                        </label>
+
+                        <p class="field-description">
+                            Selecione o modelo que será usado como referência
+                            de estrutura e formatação.
+                        </p>
+
+                        <input
+                            type="file"
+                            id="template"
+                            accept=".docx"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="documento">
+                            Documento para Revisar
+                        </label>
+
+                        <p class="field-description">
+                            Selecione o arquivo que será analisado pelo Revora.
+                        </p>
+
+                        <input
+                            type="file"
+                            id="documento"
+                            accept=".docx"
+                            required
+                        >
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        id="btnSubmit"
+                    >
+                        Iniciar Revisão
+                    </button>
+
+                </form>
+
+
+                <section
+                    id="loadingSection"
+                    class="loading-section"
+                >
+
+                    <span id="loadingText">
+                        Analisando documento...
+                    </span>
+
+                    <div class="progress-bar-container">
+
+                        <div
+                            class="progress-bar"
+                            id="progressBar"
+                        ></div>
+
+                    </div>
+
+                </section>
+
+            </section>
+
+
+            <!-- ÁREA DE AJUDA -->
+
+            <aside class="support-panel">
+
+                <section class="legend-section">
+
+                    <div class="support-title">
+                        Tipos de revisão
+                    </div>
+
+
+                    <div class="legend-item">
+
+                        <div class="color-dot dot-red"></div>
+
+                        <div class="legend-content">
+                            <strong>Ortografia</strong>
+                            <span class="legend-separator">—</span>
+                            <span>
+                                possíveis palavras grafadas incorretamente.
+                            </span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="legend-item">
+
+                        <div class="color-dot dot-blue"></div>
+
+                        <div class="legend-content">
+                            <strong>Gramática e contexto</strong>
+                            <span class="legend-separator">—</span>
+                            <span>
+                                possíveis problemas de concordância,
+                                construção ou uso contextual.
+                            </span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="legend-item">
+
+                        <div class="color-dot dot-yellow"></div>
+
+                        <div class="legend-content">
+                            <strong>Formatação</strong>
+                            <span class="legend-separator">—</span>
+                            <span>
+                                desvios em relação ao padrão definido
+                                pelo template.
+                            </span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="legend-item">
+
+                        <div class="color-dot dot-orange"></div>
+
+                        <div class="legend-content">
+                            <strong>Estrutura</strong>
+                            <span class="legend-separator">—</span>
+                            <span>
+                                elementos esperados que não foram
+                                encontrados no documento.
+                            </span>
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <section class="instructions-section">
+
+                    <div class="support-title">
+                        Após a revisão
+                    </div>
+
+                    <p>
+                        As marcações são mantidas no arquivo para facilitar
+                        a conferência das sugestões.
+                    </p>
+
+                    <p>
+                        Depois de realizar as correções, selecione o conteúdo
+                        do documento no Word e, em
+                        <strong>Cor do Realce de Texto</strong>,
+                        escolha <strong>Sem Cor</strong>.
+                    </p>
+
+                    <p class="instruction-note">
+                        O Revora aponta possíveis problemas.
+                        A decisão final de alteração permanece com o revisor.
+                    </p>
+
+                </section>
+
+            </aside>
+
+        </main>
+
+
+        <footer class="footer">
+
+            <span>
+                © 2026 Revora
+            </span>
+
+            <span class="footer-separator">
+                •
+            </span>
+
+            <span>
+
+            Versão 0.1.0
+
+            </span>
+
+            <span class="footer-separator">
+                •
+            </span>
+
+            <span>
+                Desenvolvido por Carlos A. B. Oliveira
+            </span>
+
+        </footer>
+
+    </div>
+
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>

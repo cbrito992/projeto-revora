@@ -1,0 +1,503 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+    background-color: #F3F4F6;
+
+    color: #374151;
+
+    margin: 0;
+
+    min-height: 100vh;
+}
+
+
+/* =========================
+   ESTRUTURA GERAL
+   ========================= */
+
+.app-page {
+    width: 100%;
+
+    min-height: 100vh;
+
+    display: flex;
+
+    flex-direction: column;
+
+    box-sizing: border-box;
+}
+
+
+/* =========================
+   CABEÇALHO
+   ========================= */
+
+.app-header {
+    text-align: center;
+
+    padding: 3rem 1.5rem 2rem;
+}
+
+
+.app-header h1 {
+    margin: 0 0 0.4rem;
+
+    color: #EA580C;
+
+    font-size: 2.3rem;
+
+    font-weight: 700;
+}
+
+
+.subtitle {
+    margin: 0;
+
+    color: #6B7280;
+
+    font-size: 0.95rem;
+}
+
+
+/* =========================
+   CONTEÚDO PRINCIPAL
+   ========================= */
+
+.app-main {
+    width: calc(100% - 3rem);
+
+    max-width: 1050px;
+
+    margin: 0 auto;
+
+    display: grid;
+
+    grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+
+    gap: 2rem;
+
+    align-items: start;
+
+    flex: 1;
+}
+
+
+/* =========================
+   PAINÉIS
+   ========================= */
+
+.upload-panel,
+.support-panel {
+    background-color: #FFFFFF;
+
+    border: 1px solid #E5E7EB;
+
+    border-radius: 10px;
+
+    padding: 2rem;
+
+    box-sizing: border-box;
+}
+
+
+.section-heading {
+    margin-bottom: 2rem;
+}
+
+
+.section-heading h2 {
+    margin: 0 0 0.4rem;
+
+    font-size: 1.2rem;
+
+    color: #374151;
+}
+
+
+.section-heading p {
+    margin: 0;
+
+    font-size: 0.9rem;
+
+    color: #6B7280;
+
+    line-height: 1.5;
+}
+
+
+/* =========================
+   FORMULÁRIO
+   ========================= */
+
+.form-group {
+    margin-bottom: 1.75rem;
+}
+
+
+label {
+    display: block;
+
+    margin-bottom: 0.35rem;
+
+    font-weight: 600;
+
+    color: #374151;
+}
+
+
+.field-description {
+    margin: 0 0 0.75rem;
+
+    font-size: 0.87rem;
+
+    line-height: 1.45;
+
+    color: #6B7280;
+}
+
+
+input[type="file"] {
+    width: 100%;
+
+    padding: 0.8rem;
+
+    border: 2px dashed #D1D5DB;
+
+    border-radius: 8px;
+
+    background-color: #F9FAFB;
+
+    cursor: pointer;
+
+    box-sizing: border-box;
+}
+
+
+input[type="file"]:hover {
+    border-color: #9CA3AF;
+}
+
+
+/* =========================
+   BOTÃO
+   ========================= */
+
+button {
+    width: 100%;
+
+    padding: 0.95rem;
+
+    margin-top: 0.5rem;
+
+    border: none;
+
+    border-radius: 8px;
+
+    background-color: #EA580C;
+
+    color: #FFFFFF;
+
+    font-size: 1rem;
+
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.2s ease,
+        transform 0.1s ease;
+}
+
+
+button:hover {
+    background-color: #C2410C;
+}
+
+
+button:active {
+    transform: translateY(1px);
+}
+
+
+button:disabled {
+    background-color: #9CA3AF;
+
+    cursor: not-allowed;
+}
+
+
+/* =========================
+   CARREGAMENTO
+   ========================= */
+
+#loadingSection {
+    display: none;
+
+    margin-top: 1.5rem;
+
+    text-align: center;
+}
+
+
+#loadingText {
+    font-size: 0.9rem;
+
+    color: #4B5563;
+}
+
+
+.progress-bar-container {
+    width: 100%;
+
+    height: 9px;
+
+    margin-top: 0.65rem;
+
+    overflow: hidden;
+
+    border-radius: 999px;
+
+    background-color: #E5E7EB;
+}
+
+
+.progress-bar {
+    width: 0%;
+
+    height: 100%;
+
+    border-radius: 999px;
+
+    background-color: #EA580C;
+
+    transition: width 0.3s ease;
+}
+
+
+/* =========================
+   PAINEL DE ORIENTAÇÕES
+   ========================= */
+
+.support-panel {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 1.75rem;
+}
+
+
+.support-title {
+    margin-bottom: 1rem;
+
+    font-size: 0.95rem;
+
+    font-weight: 700;
+
+    color: #374151;
+}
+
+
+/* =========================
+   LEGENDA
+   ========================= */
+
+.legend-item {
+    display: flex;
+
+    align-items: flex-start;
+
+    margin-bottom: 1rem;
+
+    font-size: 0.85rem;
+
+    line-height: 1.45;
+}
+
+
+.legend-item:last-child {
+    margin-bottom: 0;
+}
+
+
+.legend-content {
+    display: block;
+}
+
+
+.legend-content strong {
+    color: #374151;
+}
+
+
+.legend-separator {
+    margin: 0 0.2rem;
+
+    color: #9CA3AF;
+}
+
+
+.color-dot {
+    width: 11px;
+
+    height: 11px;
+
+    min-width: 11px;
+
+    margin-top: 5px;
+
+    margin-right: 9px;
+
+    border-radius: 50%;
+
+    flex-shrink: 0;
+}
+
+
+.dot-red {
+    background-color: #EF4444;
+}
+
+
+.dot-blue {
+    background-color: #06B6D4;
+}
+
+
+.dot-yellow {
+    background-color: #F59E0B;
+}
+
+
+.dot-orange {
+    background-color: #F97316;
+}
+
+
+/* =========================
+   ORIENTAÇÕES
+   ========================= */
+
+.instructions-section {
+    padding-top: 1.5rem;
+
+    border-top: 1px solid #E5E7EB;
+}
+
+
+.instructions-section p {
+    margin: 0 0 0.8rem;
+
+    color: #6B7280;
+
+    font-size: 0.85rem;
+
+    line-height: 1.55;
+}
+
+
+.instructions-section strong {
+    color: #4B5563;
+}
+
+
+.instruction-note {
+    padding: 0.75rem;
+
+    margin-bottom: 0;
+
+    border-radius: 6px;
+
+    background-color: #F9FAFB;
+}
+
+
+/* =========================
+   RODAPÉ
+   ========================= */
+
+.footer {
+    width: calc(100% - 3rem);
+
+    max-width: 1050px;
+
+    margin: 3rem auto 0;
+
+    padding: 1.25rem 0 1.75rem;
+
+    border-top: 1px solid #D1D5DB;
+
+    text-align: center;
+
+    font-size: 0.8rem;
+
+    color: #9CA3AF;
+}
+
+
+.footer-separator {
+    margin: 0 0.5rem;
+}
+
+
+/* =========================
+   RESPONSIVIDADE
+   ========================= */
+
+@media (max-width: 820px) {
+
+    .app-header {
+        padding-top: 2rem;
+    }
+
+
+    .app-main {
+        grid-template-columns: 1fr;
+
+        gap: 1.25rem;
+    }
+
+
+    .upload-panel,
+    .support-panel {
+        padding: 1.5rem;
+    }
+
+}
+
+
+@media (max-width: 520px) {
+
+    .app-main {
+        width: calc(100% - 2rem);
+    }
+
+
+    .app-header {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+
+    .app-header h1 {
+        font-size: 2rem;
+    }
+
+
+    .footer {
+        width: calc(100% - 2rem);
+    }
+
+
+    .footer-separator {
+        display: none;
+    }
+
+
+    .footer span {
+        display: block;
+
+        margin-bottom: 0.25rem;
+    }
+
+}

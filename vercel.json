@@ -1,0 +1,31 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "services": {
+    "revora": {
+      "root": "app/",
+      "entrypoint": "Dockerfile.vercel"
+    },
+
+    "blob": {
+      "root": "blob-gateway/",
+      "entrypoint": "server.ts"
+    }
+  },
+
+  "rewrites": [
+    {
+      "source": "/blob/(.*)",
+      "destination": {
+        "service": "blob"
+      }
+    },
+
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "revora"
+      }
+    }
+  ]
+}
