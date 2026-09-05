@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@vercel/blob": "latest"
+    "@vercel/blob": "latest",
+    "human-signals": "^2.1.0"
   },
   "devDependencies": {
     "@types/node": "latest",
