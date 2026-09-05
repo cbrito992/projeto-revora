@@ -37,3 +37,6 @@ target/
 
 ### VS Code ###
 .vscode/
+
+.vercel
+.env*
