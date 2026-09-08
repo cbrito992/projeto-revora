@@ -201,7 +201,13 @@ async function enviarArquivo(
 
                 headers: {
                     'Content-Type':
-                        DOCX_MIME
+                        DOCX_MIME,
+
+                    'x-content-type':
+                        DOCX_MIME,
+
+                    'x-vercel-blob-access':
+                        'private'
                 },
 
                 body:
@@ -630,7 +636,6 @@ document
 
             btnSubmit.disabled =
                 true;
-
             btnSubmit.innerText =
                 'Processando...';
 
