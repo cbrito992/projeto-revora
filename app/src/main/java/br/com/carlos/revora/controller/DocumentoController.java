@@ -16,9 +16,7 @@ public class DocumentoController {
 
     private final RevisaoService revisaoService;
 
-    public DocumentoController(
-            RevisaoService revisaoService
-    ) {
+    public DocumentoController(RevisaoService revisaoService) {
         this.revisaoService = revisaoService;
     }
 
@@ -38,7 +36,6 @@ public class DocumentoController {
                         || request.resultadoUploadUrl() == null
                         || request.resultadoUploadUrl().isBlank()
         ) {
-
             return ResponseEntity
                     .badRequest()
                     .body(
@@ -75,8 +72,12 @@ public class DocumentoController {
 
             System.err.println(
                     "Falha ao processar revisão: "
-                            + e.getClass().getSimpleName()
+                            + e.getClass().getName()
+                            + " - "
+                            + e.getMessage()
             );
+
+            e.printStackTrace();
 
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
