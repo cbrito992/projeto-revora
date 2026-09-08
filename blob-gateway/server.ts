@@ -93,12 +93,24 @@ async function criarUrl(
     ttl: number
 ) {
 
+    const validUntil =
+        Date.now() + ttl;
+
     const token =
         await issueSignedToken({
             pathname,
             operations: [operation],
-            validUntil:
-                Date.now() + ttl
+            validUntil,
+
+            ...(operation === "put"
+                ? {
+                    allowedContentTypes: [
+                        DOCX_MIME
+                    ],
+                    maximumSizeInBytes:
+                        MAX_FILE_SIZE
+                }
+                : {})
         });
 
 
@@ -108,7 +120,7 @@ async function criarUrl(
             token,
             {
                 pathname,
-                operation,
+                operation: "put",
                 access: "private",
 
                 allowedContentTypes: [
@@ -118,8 +130,26 @@ async function criarUrl(
                 maximumSizeInBytes:
                     MAX_FILE_SIZE,
 
-                validUntil:
-                    Date.now() + ttl
+                allowOverwrite: true,
+
+                validUntil
+            }
+        );
+    }
+
+
+    if (operation === "get") {
+
+        return presignUrl(
+            token,
+            {
+                pathname,
+                operation: "get",
+                access: "private",
+
+                useCache: false,
+
+                validUntil
             }
         );
     }
@@ -129,11 +159,10 @@ async function criarUrl(
         token,
         {
             pathname,
-            operation,
+            operation: "delete",
             access: "private",
 
-            validUntil:
-                Date.now() + ttl
+            validUntil
         }
     );
 }
@@ -155,7 +184,11 @@ async function apagarArquivo(
         await fetch(
             presignedUrl,
             {
-                method: "DELETE"
+                method: "DELETE",
+                signal:
+                    AbortSignal.timeout(
+                        30 * 1000
+                    )
             }
         );
 
@@ -166,7 +199,8 @@ async function apagarArquivo(
     ) {
 
         throw new Error(
-            `Falha ao excluir ${pathname}.`
+            `Falha ao excluir ${pathname}. ` +
+            `Status HTTP: ${resposta.status}.`
         );
     }
 }
@@ -529,7 +563,7 @@ const server =
                 console.error(
                     "Erro no Blob Gateway:",
                     erro instanceof Error
-                        ? erro.message
+                        ? erro.stack ?? erro.message
                         : "Erro desconhecido"
                 );
 
