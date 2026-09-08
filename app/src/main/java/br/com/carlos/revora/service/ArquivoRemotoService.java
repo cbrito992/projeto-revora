@@ -12,111 +12,102 @@ import java.net.http.HttpResponse;
 @Service
 public class ArquivoRemotoService {
 
-    private static final String DOCX_MIME =
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        private static final String DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-    private final HttpClient httpClient =
-            HttpClient.newBuilder()
-                    .followRedirects(HttpClient.Redirect.NORMAL)
-                    .build();
-
-    public InputStream baixar(
-            String url
-    ) throws IOException, InterruptedException {
-
-        validarUrlBlob(url);
-
-        HttpRequest request =
-                HttpRequest.newBuilder()
-                        .uri(URI.create(url))
-                        .GET()
+        private final HttpClient httpClient = HttpClient.newBuilder()
+                        .followRedirects(HttpClient.Redirect.NORMAL)
                         .build();
 
-        HttpResponse<InputStream> response =
-                httpClient.send(
-                        request,
-                        HttpResponse.BodyHandlers.ofInputStream()
-                );
+        public InputStream baixar(
+                        String url) throws IOException, InterruptedException {
 
-        if (
-                response.statusCode() < 200
-                        || response.statusCode() >= 300
-        ) {
-            response.body().close();
+                validarUrlBlob(url);
 
-            throw new IOException(
-                    "Falha ao acessar arquivo temporário."
-            );
+                URI uri = URI.create(url);
+
+                HttpRequest request = HttpRequest.newBuilder()
+                                .uri(uri)
+                                .timeout(
+                                                java.time.Duration.ofSeconds(30))
+                                .GET()
+                                .build();
+
+                HttpResponse<InputStream> response = httpClient.send(
+                                request,
+                                HttpResponse.BodyHandlers.ofInputStream());
+
+                int status = response.statusCode();
+
+                if (status < 200
+                                || status >= 300) {
+
+                        String host = uri.getHost();
+
+                        String contentType = response.headers()
+                                        .firstValue("content-type")
+                                        .orElse("desconhecido");
+
+                        response.body().close();
+
+                        throw new IOException(
+                                        "Falha ao acessar arquivo temporário. "
+                                                        + "HTTP "
+                                                        + status
+                                                        + " | host="
+                                                        + host
+                                                        + " | content-type="
+                                                        + contentType);
+                }
+
+                return response.body();
         }
 
-        return response.body();
-    }
+        public void enviar(
+                        String url,
+                        byte[] conteudo) throws IOException, InterruptedException {
 
-    public void enviar(
-            String url,
-            byte[] conteudo
-    ) throws IOException, InterruptedException {
+                validarUrlBlob(url);
 
-        validarUrlBlob(url);
+                HttpRequest request = HttpRequest.newBuilder()
+                                .uri(URI.create(url))
+                                .header(
+                                                "Content-Type",
+                                                DOCX_MIME)
+                                .PUT(
+                                                HttpRequest.BodyPublishers
+                                                                .ofByteArray(conteudo))
+                                .build();
 
-        HttpRequest request =
-                HttpRequest.newBuilder()
-                        .uri(URI.create(url))
-                        .header(
-                                "Content-Type",
-                                DOCX_MIME
-                        )
-                        .PUT(
-                                HttpRequest.BodyPublishers
-                                        .ofByteArray(conteudo)
-                        )
-                        .build();
+                HttpResponse<Void> response = httpClient.send(
+                                request,
+                                HttpResponse.BodyHandlers.discarding());
 
-        HttpResponse<Void> response =
-                httpClient.send(
-                        request,
-                        HttpResponse.BodyHandlers.discarding()
-                );
-
-        if (
-                response.statusCode() < 200
-                        || response.statusCode() >= 300
-        ) {
-            throw new IOException(
-                    "Falha ao salvar o documento revisado."
-            );
-        }
-    }
-
-    private void validarUrlBlob(
-            String url
-    ) {
-
-        if (
-                url == null
-                        || url.isBlank()
-        ) {
-            throw new IllegalArgumentException(
-                    "URL de arquivo inválida."
-            );
+                if (response.statusCode() < 200
+                                || response.statusCode() >= 300) {
+                        throw new IOException(
+                                        "Falha ao salvar o documento revisado.");
+                }
         }
 
-        URI uri =
-                URI.create(url);
+        private void validarUrlBlob(
+                        String url) {
 
-        String host =
-                uri.getHost();
+                if (url == null
+                                || url.isBlank()) {
+                        throw new IllegalArgumentException(
+                                        "URL de arquivo inválida.");
+                }
 
-        if (
-                !"https".equalsIgnoreCase(uri.getScheme())
-                        || host == null
-                        || !host.endsWith(
-                                ".private.blob.vercel-storage.com"
-                        )
-        ) {
-            throw new IllegalArgumentException(
-                    "Origem de arquivo não autorizada."
-            );
+                URI uri = URI.create(url);
+
+                String host = uri.getHost();
+
+                if (!"https".equalsIgnoreCase(uri.getScheme())
+                                || host == null
+                                || !host.endsWith(
+                                                ".private.blob.vercel-storage.com")) {
+                        throw new IllegalArgumentException(
+                                        "Origem de arquivo não autorizada.");
+                }
         }
-    }
 }
