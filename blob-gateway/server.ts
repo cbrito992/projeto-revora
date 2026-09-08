@@ -335,6 +335,12 @@ const server =
                         {
                             sessao,
 
+                            templatePathname:
+                                caminhos.template,
+
+                            documentoPathname:
+                                caminhos.documento,
+
                             templateUploadUrl:
                                 templateUpload.presignedUrl,
 
@@ -385,9 +391,38 @@ const server =
                         );
 
 
+                    const templatePathname =
+                        typeof body.templatePathname === "string"
+                            ? body.templatePathname
+                            : "";
+
+                    const documentoPathname =
+                        typeof body.documentoPathname === "string"
+                            ? body.documentoPathname
+                            : "";
+
+
+                    if (
+                        templatePathname !== caminhos.template ||
+                        documentoPathname !== caminhos.documento
+                    ) {
+
+                        responderJson(
+                            res,
+                            400,
+                            {
+                                erro:
+                                    "Os arquivos enviados não pertencem à sessão informada."
+                            }
+                        );
+
+                        return;
+                    }
+
+
                     const templateRead =
                         await criarUrl(
-                            caminhos.template,
+                            templatePathname,
                             "get",
                             PROCESS_TTL
                         );
@@ -395,7 +430,7 @@ const server =
 
                     const documentoRead =
                         await criarUrl(
-                            caminhos.documento,
+                            documentoPathname,
                             "get",
                             PROCESS_TTL
                         );
