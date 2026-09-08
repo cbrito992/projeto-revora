@@ -130,6 +130,8 @@ async function criarUrl(
                 maximumSizeInBytes:
                     MAX_FILE_SIZE,
 
+                addRandomSuffix: false,
+
                 allowOverwrite: true,
 
                 validUntil
