@@ -181,13 +181,22 @@ async function criarSessao(
  */
 async function enviarArquivo(
     url,
-    file
+    file,
+    pathnameEsperado
 ) {
 
     if (!url) {
 
         throw new Error(
             'URL de upload não recebida.'
+        );
+    }
+
+
+    if (!pathnameEsperado) {
+
+        throw new Error(
+            'Pathname do arquivo não recebido.'
         );
     }
 
@@ -212,14 +221,16 @@ async function enviarArquivo(
 
                 body:
                     file
-            }
+            },
+
+            2 * 60 * 1000
         );
 
 
     if (!response.ok) {
 
         throw new Error(
-            `Não foi possível enviar um dos arquivos. HTTP ${response.status}.`
+            `Não foi possível enviar o arquivo ${pathnameEsperado}. HTTP ${response.status}.`
         );
     }
 }
@@ -231,7 +242,9 @@ async function enviarArquivo(
  * =========================================================
  */
 async function obterAcessoProcessamento(
-    sessao
+    sessao,
+    templatePathname,
+    documentoPathname
 ) {
 
     const response =
@@ -248,7 +261,9 @@ async function obterAcessoProcessamento(
 
                 body:
                     JSON.stringify({
-                        sessao
+                        sessao,
+                        templatePathname,
+                        documentoPathname
                     })
             }
         );
@@ -677,19 +692,36 @@ document
                 /*
                  * 2. Envia os dois arquivos.
                  */
+                if (
+                    !dadosSessao.templatePathname ||
+                    !dadosSessao.documentoPathname
+                ) {
+
+                    throw new Error(
+                        'O servidor não retornou os pathnames dos arquivos.'
+                    );
+                }
+
+
                 await Promise.all([
                     enviarArquivo(
                         dadosSessao
                             .templateUploadUrl,
 
-                        templateFile
+                        templateFile,
+
+                        dadosSessao
+                            .templatePathname
                     ),
 
                     enviarArquivo(
                         dadosSessao
                             .documentoUploadUrl,
 
-                        documentoFile
+                        documentoFile,
+
+                        dadosSessao
+                            .documentoPathname
                     )
                 ]);
 
@@ -704,7 +736,11 @@ document
                  */
                 const acesso =
                     await obterAcessoProcessamento(
-                        sessao
+                        sessao,
+                        dadosSessao
+                            .templatePathname,
+                        dadosSessao
+                            .documentoPathname
                     );
 
 
