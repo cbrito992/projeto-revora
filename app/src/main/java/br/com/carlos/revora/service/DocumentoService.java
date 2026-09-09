@@ -1,10 +1,14 @@
 package br.com.carlos.revora.service;
 
+import br.com.carlos.revora.model.CategoriaEditorial;
 import br.com.carlos.revora.model.ConvencaoNumeradaProfile;
 import br.com.carlos.revora.model.FormatacaoProfile;
 import br.com.carlos.revora.model.LayoutProfile;
+import br.com.carlos.revora.model.OcorrenciaEditorial;
+import br.com.carlos.revora.model.ResultadoAnaliseEditorial;
 import br.com.carlos.revora.model.TagProfile;
 import br.com.carlos.revora.model.TemplateProfile;
+import br.com.carlos.revora.model.TrechoEditorial;
 
 import org.apache.lucene.analysis.hunspell.Dictionary;
 import org.apache.lucene.analysis.hunspell.Hunspell;
@@ -12,24 +16,24 @@ import org.apache.lucene.store.ByteBuffersDirectory;
 
 import org.apache.poi.xwpf.usermodel.*;
 
-import org.languagetool.rules.RuleMatch;
-
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTRPr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageMar;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageSz;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectPr;
 
 import org.springframework.stereotype.Service;
+
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 
 import java.math.BigInteger;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 import java.util.regex.Matcher;
@@ -43,6 +47,14 @@ public class DocumentoService {
             Locale.forLanguageTag("pt-BR");
 
 
+    /*
+     * Quando a IA for conectada, ocorrências com
+     * confiança menor que esse valor serão ignoradas.
+     */
+    private static final double CONFIANCA_MINIMA_IA =
+            0.70;
+
+
     private static final Pattern PADRAO_PALAVRA =
             Pattern.compile(
                     "\\p{L}+(?:[-'’]\\p{L}+)*"
@@ -50,8 +62,8 @@ public class DocumentoService {
 
 
     /*
-     * O mesmo princípio usado no TemplateService:
-     * não pressupõe Figura/Quadro/Tabela.
+     * Não pressupõe Figura, Quadro ou Tabela.
+     * A convenção é inferida pelo template.
      */
     private static final Pattern PADRAO_NUMERADO =
             Pattern.compile(
@@ -62,27 +74,24 @@ public class DocumentoService {
             );
 
 
-    private final GramaticaService
-            gramaticaService;
+    private final TemplateService templateService;
 
-
-    private final TemplateService
-            templateService;
+    private final AnaliseEditorialIaService analiseEditorialIaService;
 
 
     private Hunspell hunspellChecker;
 
 
     public DocumentoService(
-            GramaticaService gramaticaService,
-            TemplateService templateService
+            TemplateService templateService,
+            AnaliseEditorialIaService analiseEditorialIaService
     ) {
-
-        this.gramaticaService =
-                gramaticaService;
 
         this.templateService =
                 templateService;
+
+        this.analiseEditorialIaService =
+                analiseEditorialIaService;
     }
 
 
@@ -115,7 +124,8 @@ public class DocumentoService {
 
             if (
                     affStream == null
-                            || dicStream == null
+                            ||
+                    dicStream == null
             ) {
 
                 throw new IllegalStateException(
@@ -154,25 +164,38 @@ public class DocumentoService {
 
         carregarHunspell();
 
+
         TemplateProfile perfil;
+
 
         try (
                 XWPFDocument docTemplate =
-                        new XWPFDocument(templateStream)
+                        new XWPFDocument(
+                                templateStream
+                        )
         ) {
-            perfil = templateService.analisar(docTemplate);
+
+            perfil =
+                    templateService.analisar(
+                            docTemplate
+                    );
         }
+
 
         ByteArrayOutputStream baos =
                 new ByteArrayOutputStream();
 
+
         try (
                 XWPFDocument documento =
-                        new XWPFDocument(documentoStream)
+                        new XWPFDocument(
+                                documentoStream
+                        )
         ) {
 
             List<String> relatorio =
                     new ArrayList<>();
+
 
             validarLayout(
                     documento,
@@ -180,22 +203,69 @@ public class DocumentoService {
                     relatorio
             );
 
-            for (XWPFParagraph paragrafo :
-                    documento.getParagraphs()) {
 
-                revisarParagrafo(paragrafo);
+            /*
+             * Cria a representação editorial:
+             *
+             * P0001 -> parágrafo...
+             * P0002 -> parágrafo...
+             * P0003 -> parágrafo...
+             *
+             * O vínculo entre o ID e o XWPFParagraph
+             * permanece em memória durante a revisão.
+             */
+            ContextoEditorial contexto =
+                    criarContextoEditorial(
+                            documento
+                    );
 
+
+            /*
+             * Processamos corpo e tabelas usando
+             * o mesmo mapa editorial.
+             */
+            for (
+                    TrechoEditorial trecho :
+                    contexto.trechos()
+            ) {
+
+                XWPFParagraph paragrafo =
+                        contexto
+                                .paragrafosPorId()
+                                .get(
+                                        trecho.paragrafoId()
+                                );
+
+
+                if (paragrafo == null) {
+                    continue;
+                }
+
+
+                /*
+                 * Hunspell.
+                 */
+                revisarParagrafo(
+                        paragrafo
+                );
+
+
+                /*
+                 * Estrutura/template.
+                 */
                 validarTag(
                         paragrafo,
                         perfil,
                         relatorio
                 );
 
+
                 validarConvencaoNumerada(
                         paragrafo,
                         perfil,
                         relatorio
                 );
+
 
                 validarFormatacaoCorpo(
                         paragrafo,
@@ -204,25 +274,484 @@ public class DocumentoService {
                 );
             }
 
-            for (XWPFTable tabela :
-                    documento.getTables()) {
 
-                processarTabela(
-                        tabela,
-                        perfil,
-                        relatorio
-                );
-            }
+            /*
+             * Análise editorial por IA.
+             *
+             * Quando revora.ia.enabled=false, a implementação
+             * configurada retorna uma lista vazia e nenhuma
+             * chamada externa é realizada.
+             */
+            ResultadoAnaliseEditorial resultado =
+                    analiseEditorialIaService.analisar(
+                            contexto.trechos()
+                    );
+
+
+            aplicarResultadoEditorial(
+                    contexto,
+                    resultado,
+                    relatorio
+            );
+
 
             anexarRelatorio(
                     documento,
                     relatorio
             );
 
-            documento.write(baos);
+
+            documento.write(
+                    baos
+            );
         }
 
+
         return baos.toByteArray();
+    }
+
+
+    /**
+     * =========================================================
+     * CONTEXTO EDITORIAL
+     * =========================================================
+     */
+    private ContextoEditorial criarContextoEditorial(
+            XWPFDocument documento
+    ) {
+
+        List<TrechoEditorial> trechos =
+                new ArrayList<>();
+
+
+        Map<String, XWPFParagraph> paragrafosPorId =
+                new LinkedHashMap<>();
+
+
+        int proximoIndice =
+                1;
+
+
+        /*
+         * Corpo principal.
+         */
+        for (
+                XWPFParagraph paragrafo :
+                documento.getParagraphs()
+        ) {
+
+            proximoIndice =
+                    adicionarParagrafoAoContexto(
+                            paragrafo,
+                            proximoIndice,
+                            trechos,
+                            paragrafosPorId
+                    );
+        }
+
+
+        /*
+         * Tabelas.
+         */
+        for (
+                XWPFTable tabela :
+                documento.getTables()
+        ) {
+
+            proximoIndice =
+                    adicionarTabelaAoContexto(
+                            tabela,
+                            proximoIndice,
+                            trechos,
+                            paragrafosPorId
+                    );
+        }
+
+
+        return new ContextoEditorial(
+                List.copyOf(
+                        trechos
+                ),
+                paragrafosPorId
+        );
+    }
+
+
+    private int adicionarParagrafoAoContexto(
+            XWPFParagraph paragrafo,
+            int indice,
+            List<TrechoEditorial> trechos,
+            Map<String, XWPFParagraph> paragrafosPorId
+    ) {
+
+        if (paragrafo == null) {
+            return indice;
+        }
+
+
+        String texto =
+                paragrafo.getText();
+
+
+        /*
+         * Parágrafos vazios não precisam ser
+         * enviados para análise editorial.
+         */
+        if (
+                texto == null
+                        ||
+                texto.isBlank()
+        ) {
+
+            return indice;
+        }
+
+
+        String paragrafoId =
+                String.format(
+                        Locale.ROOT,
+                        "P%04d",
+                        indice
+                );
+
+
+        trechos.add(
+                new TrechoEditorial(
+                        paragrafoId,
+                        texto
+                )
+        );
+
+
+        paragrafosPorId.put(
+                paragrafoId,
+                paragrafo
+        );
+
+
+        return indice + 1;
+    }
+
+
+    private int adicionarTabelaAoContexto(
+            XWPFTable tabela,
+            int indice,
+            List<TrechoEditorial> trechos,
+            Map<String, XWPFParagraph> paragrafosPorId
+    ) {
+
+        int proximoIndice =
+                indice;
+
+
+        for (
+                XWPFTableRow linha :
+                tabela.getRows()
+        ) {
+
+            for (
+                    XWPFTableCell celula :
+                    linha.getTableCells()
+            ) {
+
+                for (
+                        XWPFParagraph paragrafo :
+                        celula.getParagraphs()
+                ) {
+
+                    proximoIndice =
+                            adicionarParagrafoAoContexto(
+                                    paragrafo,
+                                    proximoIndice,
+                                    trechos,
+                                    paragrafosPorId
+                            );
+                }
+
+
+                /*
+                 * Suporta tabelas dentro
+                 * de outras tabelas.
+                 */
+                for (
+                        XWPFTable tabelaInterna :
+                        celula.getTables()
+                ) {
+
+                    proximoIndice =
+                            adicionarTabelaAoContexto(
+                                    tabelaInterna,
+                                    proximoIndice,
+                                    trechos,
+                                    paragrafosPorId
+                            );
+                }
+            }
+        }
+
+
+        return proximoIndice;
+    }
+
+
+    /**
+     * =========================================================
+     * RESULTADOS DA IA
+     * =========================================================
+     *
+     * Ainda não é chamado.
+     *
+     * Já deixamos a infraestrutura preparada para
+     * a próxima etapa.
+     */
+    private void aplicarResultadoEditorial(
+            ContextoEditorial contexto,
+            ResultadoAnaliseEditorial resultado,
+            List<String> relatorio
+    ) {
+
+        if (
+                resultado == null
+                        ||
+                resultado.ocorrencias() == null
+                        ||
+                resultado.ocorrencias().isEmpty()
+        ) {
+
+            return;
+        }
+
+
+        for (
+                OcorrenciaEditorial ocorrencia :
+                resultado.ocorrencias()
+        ) {
+
+            aplicarOcorrenciaEditorial(
+                    contexto,
+                    ocorrencia,
+                    relatorio
+            );
+        }
+    }
+
+
+    private void aplicarOcorrenciaEditorial(
+            ContextoEditorial contexto,
+            OcorrenciaEditorial ocorrencia,
+            List<String> relatorio
+    ) {
+
+        if (ocorrencia == null) {
+            return;
+        }
+
+
+        /*
+         * Evita marcar sugestões pouco confiáveis.
+         */
+        if (
+                ocorrencia.confianca()
+                        <
+                CONFIANCA_MINIMA_IA
+        ) {
+
+            return;
+        }
+
+
+        String paragrafoId =
+                ocorrencia.paragrafoId();
+
+
+        String evidencia =
+                ocorrencia.evidencia();
+
+
+        if (
+                paragrafoId == null
+                        ||
+                paragrafoId.isBlank()
+                        ||
+                evidencia == null
+                        ||
+                evidencia.isBlank()
+        ) {
+
+            return;
+        }
+
+
+        XWPFParagraph paragrafo =
+                contexto
+                        .paragrafosPorId()
+                        .get(
+                                paragrafoId
+                        );
+
+
+        if (paragrafo == null) {
+            return;
+        }
+
+
+        String texto =
+                paragrafo.getText();
+
+
+        if (
+                texto == null
+                        ||
+                texto.isBlank()
+        ) {
+
+            return;
+        }
+
+
+        /*
+         * A evidência precisa existir literalmente
+         * dentro do parágrafo indicado pela IA.
+         *
+         * Isso é proposital:
+         * o Revora não deve tentar "adivinhar"
+         * onde aplicar uma marcação.
+         */
+        int inicio =
+                texto.indexOf(
+                        evidencia
+                );
+
+
+        if (inicio < 0) {
+            return;
+        }
+
+
+        int fim =
+                inicio +
+                evidencia.length();
+
+
+        TipoMarcacao tipo =
+                converterCategoriaEditorial(
+                        ocorrencia.categoria()
+                );
+
+
+        if (
+                tipo ==
+                TipoMarcacao.NENHUMA
+        ) {
+
+            return;
+        }
+
+
+        aplicarMarcacoes(
+                paragrafo,
+                List.of(
+                        new Marcacao(
+                                inicio,
+                                fim,
+                                tipo
+                        )
+                )
+        );
+
+
+        relatorio.add(
+                montarEntradaRelatorioEditorial(
+                        ocorrencia
+                )
+        );
+    }
+
+
+    private TipoMarcacao converterCategoriaEditorial(
+            CategoriaEditorial categoria
+    ) {
+
+        if (categoria == null) {
+            return TipoMarcacao.NENHUMA;
+        }
+
+
+        return switch (categoria) {
+
+            case HUMANIZACAO ->
+                    TipoMarcacao.HUMANIZACAO;
+
+            case ABNT ->
+                    TipoMarcacao.ABNT;
+        };
+    }
+
+
+    private String montarEntradaRelatorioEditorial(
+            OcorrenciaEditorial ocorrencia
+    ) {
+
+        String categoria =
+                ocorrencia.categoria() != null
+                        ?
+                        ocorrencia
+                                .categoria()
+                                .name()
+                        :
+                        "EDITORIAL";
+
+
+        String subtipo =
+                textoOuPadrao(
+                        ocorrencia.subtipo(),
+                        "ANÁLISE"
+                );
+
+
+        String motivo =
+                textoOuPadrao(
+                        ocorrencia.motivo(),
+                        "Trecho sinalizado para revisão."
+                );
+
+
+        String sugestao =
+                textoOuPadrao(
+                        ocorrencia.sugestao(),
+                        "Revisar o trecho indicado."
+                );
+
+
+        return "[" +
+                categoria +
+                " / " +
+                subtipo +
+                "] " +
+                motivo +
+                " Trecho: \"" +
+                ocorrencia.evidencia() +
+                "\". Sugestão: " +
+                sugestao;
+    }
+
+
+    private String textoOuPadrao(
+            String texto,
+            String padrao
+    ) {
+
+        if (
+                texto == null
+                        ||
+                texto.isBlank()
+        ) {
+
+            return padrao;
+        }
+
+
+        return texto.trim();
     }
 
 
@@ -282,7 +811,7 @@ public class DocumentoService {
                             esperado.getLarguraPaginaCm(),
                             0.15
                     )
-                    ||
+                            ||
                     diferente(
                             altura,
                             esperado.getAlturaPaginaCm(),
@@ -301,9 +830,13 @@ public class DocumentoService {
                                 esperado.getAlturaPaginaCm()
                         ) +
                         " cm. Documento: " +
-                        formatarCm(largura) +
+                        formatarCm(
+                                largura
+                        ) +
                         " × " +
-                        formatarCm(altura) +
+                        formatarCm(
+                                altura
+                        ) +
                         " cm."
                 );
             }
@@ -379,9 +912,13 @@ public class DocumentoService {
                     "Margem " +
                     nome +
                     " divergente. Template: " +
-                    formatarCm(esperada) +
+                    formatarCm(
+                            esperada
+                    ) +
                     " cm. Documento: " +
-                    formatarCm(encontrada) +
+                    formatarCm(
+                            encontrada
+                    ) +
                     " cm."
             );
         }
@@ -407,7 +944,9 @@ public class DocumentoService {
 
         if (
                 !templateService
-                        .pareceMarcador(texto)
+                        .pareceMarcador(
+                                texto
+                        )
         ) {
 
             return;
@@ -424,12 +963,11 @@ public class DocumentoService {
         TagProfile tagEsperada =
                 perfil
                         .getTags()
-                        .get(normalizado);
+                        .get(
+                                normalizado
+                        );
 
 
-        /*
-         * Marcador conhecido.
-         */
         if (tagEsperada != null) {
 
             String preferida =
@@ -440,9 +978,9 @@ public class DocumentoService {
             if (
                     preferida != null
                             &&
-                            !texto.equals(
-                                    preferida
-                            )
+                    !texto.equals(
+                            preferida
+                    )
             ) {
 
                 destacarParagrafo(
@@ -468,17 +1006,12 @@ public class DocumentoService {
         }
 
 
-        /*
-         * Se parece muito com uma tag,
-         * mas não pertence ao perfil,
-         * classificamos como estrutura não prevista.
-         *
-         * Não afirmamos que está errada.
-         */
         if (
                 texto.contains("#")
-                        || texto.startsWith("[")
-                        || texto.startsWith("<")
+                        ||
+                texto.startsWith("[")
+                        ||
+                texto.startsWith("<")
         ) {
 
             relatorio.add(
@@ -537,7 +1070,9 @@ public class DocumentoService {
         ConvencaoNumeradaProfile esperado =
                 perfil
                         .getConvencoesNumeradas()
-                        .get(normalizado);
+                        .get(
+                                normalizado
+                        );
 
 
         if (esperado == null) {
@@ -548,11 +1083,11 @@ public class DocumentoService {
         if (
                 esperado.getSeparador() != null
                         &&
-                        !esperado
-                                .getSeparador()
-                                .equals(
-                                        separadorEncontrado
-                                )
+                !esperado
+                        .getSeparador()
+                        .equals(
+                                separadorEncontrado
+                        )
         ) {
 
             destacarParagrafo(
@@ -595,12 +1130,6 @@ public class DocumentoService {
                         .trim();
 
 
-        /*
-         * Ainda usamos uma heurística conservadora.
-         *
-         * Não queremos marcar títulos ou legendas
-         * usando a formatação do corpo.
-         */
         if (!ehParagrafoDeCorpo(texto)) {
             return;
         }
@@ -620,11 +1149,10 @@ public class DocumentoService {
 
 
         if (
-                esperado.getAlinhamento()
-                        != null
+                esperado.getAlinhamento() != null
                         &&
-                        paragrafo.getAlignment()
-                                != esperado.getAlinhamento()
+                paragrafo.getAlignment()
+                        != esperado.getAlinhamento()
         ) {
 
             divergente =
@@ -633,17 +1161,16 @@ public class DocumentoService {
 
 
         if (
-                esperado.getEspacamentoEntreLinhas()
-                        != null
+                esperado.getEspacamentoEntreLinhas() != null
                         &&
-                        paragrafo.getSpacingBetween() > 0
+                paragrafo.getSpacingBetween() > 0
                         &&
-                        diferente(
-                                paragrafo.getSpacingBetween(),
-                                esperado
-                                        .getEspacamentoEntreLinhas(),
-                                0.05
-                        )
+                diferente(
+                        paragrafo.getSpacingBetween(),
+                        esperado
+                                .getEspacamentoEntreLinhas(),
+                        0.05
+                )
         ) {
 
             divergente =
@@ -651,15 +1178,19 @@ public class DocumentoService {
         }
 
 
-        /*
-         * Fonte e tamanho são avaliados run por run.
-         */
-        for (XWPFRun run :
-                paragrafo.getRuns()) {
+        for (
+                XWPFRun run :
+                paragrafo.getRuns()
+        ) {
+
+            String textoRun =
+                    run.text();
+
 
             if (
-                    run.text() == null
-                            || run.text().isBlank()
+                    textoRun == null
+                            ||
+                textoRun.isBlank()
             ) {
 
                 continue;
@@ -673,13 +1204,13 @@ public class DocumentoService {
             if (
                     esperado.getFonte() != null
                             &&
-                            run.getFontFamily() != null
+                    run.getFontFamily() != null
                             &&
-                            !esperado
-                                    .getFonte()
-                                    .equalsIgnoreCase(
-                                            run.getFontFamily()
-                                    )
+                    !esperado
+                            .getFonte()
+                            .equalsIgnoreCase(
+                                    run.getFontFamily()
+                            )
             ) {
 
                 runDivergente =
@@ -692,17 +1223,16 @@ public class DocumentoService {
 
 
             if (
-                    esperado.getTamanhoFonte()
-                            != null
+                    esperado.getTamanhoFonte() != null
                             &&
-                            tamanho != null
+                    tamanho != null
                             &&
-                            diferente(
-                                    tamanho,
-                                    esperado
-                                            .getTamanhoFonte(),
-                                    0.25
-                            )
+                    diferente(
+                            tamanho,
+                            esperado
+                                    .getTamanhoFonte(),
+                            0.25
+                    )
             ) {
 
                 runDivergente =
@@ -723,11 +1253,6 @@ public class DocumentoService {
         }
 
 
-        /*
-         * Alinhamento/espaçamento são propriedades
-         * de parágrafo, então destacamos os runs
-         * caso haja divergência global.
-         */
         if (divergente) {
 
             destacarParagrafo(
@@ -744,33 +1269,32 @@ public class DocumentoService {
 
         if (
                 texto == null
-                        || texto.isBlank()
-                        || texto.length() < 80
+                        ||
+                texto.isBlank()
+                        ||
+                texto.length() < 80
         ) {
 
             return false;
         }
 
 
-        boolean possuiMinuscula =
-                texto.chars()
-                        .anyMatch(
-                                Character::isLowerCase
-                        );
-
-
-        return possuiMinuscula;
+        return texto
+                .chars()
+                .anyMatch(
+                        Character::isLowerCase
+                );
     }
 
 
     /**
      * =========================================================
-     * ORTOGRAFIA + GRAMÁTICA
+     * ORTOGRAFIA
      * =========================================================
      */
     private void revisarParagrafo(
             XWPFParagraph paragrafo
-    ) throws IOException {
+    ) {
 
         List<MapaRun> mapaRuns =
                 mapearRuns(
@@ -783,21 +1307,10 @@ public class DocumentoService {
         }
 
 
-        StringBuilder builder =
-                new StringBuilder();
-
-
-        for (MapaRun mapa :
-                mapaRuns) {
-
-            builder.append(
-                    mapa.texto
-            );
-        }
-
-
         String texto =
-                builder.toString();
+                juntarTextoRuns(
+                        mapaRuns
+                );
 
 
         if (texto.isBlank()) {
@@ -815,54 +1328,10 @@ public class DocumentoService {
         );
 
 
-        localizarErrosGramaticais(
-                texto,
+        aplicarMarcacoes(
+                paragrafo,
                 marcacoes
         );
-
-
-        if (marcacoes.isEmpty()) {
-            return;
-        }
-
-
-        for (
-                int i =
-                        mapaRuns.size() - 1;
-                i >= 0;
-                i--
-        ) {
-
-            MapaRun mapa =
-                    mapaRuns.get(i);
-
-
-            if (
-                    mapa.hyperlink
-                            || mapa.especial
-            ) {
-
-                continue;
-            }
-
-
-            List<MarcacaoLocal>
-                    marcacoesRun =
-                    localizarMarcacoesDoRun(
-                            mapa,
-                            marcacoes
-                    );
-
-
-            if (!marcacoesRun.isEmpty()) {
-
-                substituirRun(
-                        paragrafo,
-                        mapa,
-                        marcacoesRun
-                );
-            }
-        }
     }
 
 
@@ -908,8 +1377,10 @@ public class DocumentoService {
 
         if (
                 palavra == null
-                        || palavra.isBlank()
-                        || hunspellChecker == null
+                        ||
+                palavra.isBlank()
+                        ||
+                hunspellChecker == null
         ) {
 
             return true;
@@ -944,8 +1415,10 @@ public class DocumentoService {
 
         if (
                 palavra.contains("-")
-                        || palavra.contains("'")
-                        || palavra.contains("’")
+                        ||
+                palavra.contains("'")
+                        ||
+                palavra.contains("’")
         ) {
 
             String[] partes =
@@ -954,8 +1427,10 @@ public class DocumentoService {
                     );
 
 
-            for (String parte :
-                    partes) {
+            for (
+                    String parte :
+                    partes
+            ) {
 
                 if (parte.isBlank()) {
                     continue;
@@ -967,11 +1442,11 @@ public class DocumentoService {
                                 parte
                         )
                                 &&
-                                !hunspellChecker.spell(
-                                        parte.toLowerCase(
-                                                PT_BR
-                                        )
+                        !hunspellChecker.spell(
+                                parte.toLowerCase(
+                                        PT_BR
                                 )
+                        )
                 ) {
 
                     return false;
@@ -987,104 +1462,6 @@ public class DocumentoService {
     }
 
 
-    private void localizarErrosGramaticais(
-            String texto,
-            List<Marcacao> marcacoes
-    ) throws IOException {
-
-        List<RuleMatch> problemas =
-                gramaticaService.revisar(
-                        texto
-                );
-
-
-        for (RuleMatch problema :
-                problemas) {
-
-            int inicio =
-                    problema.getFromPos();
-
-
-            int fim =
-                    problema.getToPos();
-
-
-            if (
-                    inicio < 0
-                            || fim > texto.length()
-                            || inicio >= fim
-            ) {
-
-                continue;
-            }
-
-
-            marcacoes.add(
-                    new Marcacao(
-                            inicio,
-                            fim,
-                            TipoMarcacao.GRAMATICA
-                    )
-            );
-        }
-    }
-
-
-    /**
-     * =========================================================
-     * TABELAS
-     * =========================================================
-     */
-    private void processarTabela(
-            XWPFTable tabela,
-            TemplateProfile perfil,
-            List<String> relatorio
-    ) throws IOException {
-
-        for (XWPFTableRow linha :
-                tabela.getRows()) {
-
-            for (XWPFTableCell celula :
-                    linha.getTableCells()) {
-
-                for (XWPFParagraph paragrafo :
-                        celula.getParagraphs()) {
-
-                    revisarParagrafo(paragrafo);
-
-                    validarTag(
-                            paragrafo,
-                            perfil,
-                            relatorio
-                    );
-
-                    validarConvencaoNumerada(
-                            paragrafo,
-                            perfil,
-                            relatorio
-                    );
-
-                    validarFormatacaoCorpo(
-                            paragrafo,
-                            perfil,
-                            relatorio
-                    );
-                }
-
-                for (XWPFTable interna :
-                        celula.getTables()) {
-
-                    processarTabela(
-                            interna,
-                            perfil,
-                            relatorio
-                    );
-                }
-            }
-        }
-    }
-
-
     /**
      * =========================================================
      * RELATÓRIO
@@ -1095,9 +1472,6 @@ public class DocumentoService {
             List<String> problemas
     ) {
 
-        /*
-         * Evita duplicatas iguais.
-         */
         Set<String> unicos =
                 new LinkedHashSet<>(
                         problemas
@@ -1141,8 +1515,10 @@ public class DocumentoService {
         );
 
 
-        for (String problema :
-                unicos) {
+        for (
+                String problema :
+                unicos
+        ) {
 
             XWPFParagraph p =
                     documento.createParagraph();
@@ -1161,6 +1537,76 @@ public class DocumentoService {
             run.setTextHighlightColor(
                     "darkYellow"
             );
+        }
+    }
+
+
+    /**
+     * =========================================================
+     * MARCAÇÕES
+     * =========================================================
+     */
+    private void aplicarMarcacoes(
+            XWPFParagraph paragrafo,
+            List<Marcacao> marcacoes
+    ) {
+
+        if (
+                marcacoes == null
+                        ||
+                marcacoes.isEmpty()
+        ) {
+
+            return;
+        }
+
+
+        List<MapaRun> mapaRuns =
+                mapearRuns(
+                        paragrafo
+                );
+
+
+        /*
+         * Percorre do fim para o começo porque
+         * os runs serão substituídos.
+         */
+        for (
+                int i =
+                        mapaRuns.size() - 1;
+                i >= 0;
+                i--
+        ) {
+
+            MapaRun mapa =
+                    mapaRuns.get(i);
+
+
+            if (
+                    mapa.hyperlink
+                            ||
+                mapa.especial
+            ) {
+
+                continue;
+            }
+
+
+            List<MarcacaoLocal> marcacoesRun =
+                    localizarMarcacoesDoRun(
+                            mapa,
+                            marcacoes
+                    );
+
+
+            if (!marcacoesRun.isEmpty()) {
+
+                substituirRun(
+                        paragrafo,
+                        mapa,
+                        marcacoesRun
+                );
+            }
         }
     }
 
@@ -1221,13 +1667,12 @@ public class DocumentoService {
                             texto,
                             inicio,
                             fim,
-                            run instanceof
-                                    XWPFHyperlinkRun,
+                            run instanceof XWPFHyperlinkRun,
                             texto.contains("\t")
                                     ||
-                                    texto.contains("\n")
+                            texto.contains("\n")
                                     ||
-                                    texto.contains("\r")
+                            texto.contains("\r")
                     )
             );
 
@@ -1241,18 +1686,42 @@ public class DocumentoService {
     }
 
 
-    private List<MarcacaoLocal>
-            localizarMarcacoesDoRun(
-                    MapaRun mapa,
-                    List<Marcacao> marcacoes
+    private String juntarTextoRuns(
+            List<MapaRun> mapaRuns
+    ) {
+
+        StringBuilder builder =
+                new StringBuilder();
+
+
+        for (
+                MapaRun mapa :
+                mapaRuns
+        ) {
+
+            builder.append(
+                    mapa.texto
+            );
+        }
+
+
+        return builder.toString();
+    }
+
+
+    private List<MarcacaoLocal> localizarMarcacoesDoRun(
+            MapaRun mapa,
+            List<Marcacao> marcacoes
     ) {
 
         List<MarcacaoLocal> resultado =
                 new ArrayList<>();
 
 
-        for (Marcacao marcacao :
-                marcacoes) {
+        for (
+                Marcacao marcacao :
+                marcacoes
+        ) {
 
             int inicio =
                     Math.max(
@@ -1308,6 +1777,9 @@ public class DocumentoService {
                 null;
 
 
+        /*
+         * Preserva a formatação original.
+         */
         if (
                 mapa.run
                         .getCTR()
@@ -1327,18 +1799,25 @@ public class DocumentoService {
                 new LinkedHashSet<>();
 
 
-        limites.add(0);
+        limites.add(
+                0
+        );
+
+
         limites.add(
                 texto.length()
         );
 
 
-        for (MarcacaoLocal m :
-                marcacoes) {
+        for (
+                MarcacaoLocal m :
+                marcacoes
+        ) {
 
             limites.add(
                     m.inicio
             );
+
 
             limites.add(
                     m.fim
@@ -1377,7 +1856,9 @@ public class DocumentoService {
 
 
             int fim =
-                    lista.get(i + 1);
+                    lista.get(
+                            i + 1
+                    );
 
 
             if (inicio >= fim) {
@@ -1421,12 +1902,15 @@ public class DocumentoService {
                 TipoMarcacao.NENHUMA;
 
 
-        for (MarcacaoLocal m :
-                marcacoes) {
+        for (
+                MarcacaoLocal m :
+                marcacoes
+        ) {
 
             if (
                     inicio < m.inicio
-                            || fim > m.fim
+                            ||
+                fim > m.fim
             ) {
 
                 continue;
@@ -1434,11 +1918,15 @@ public class DocumentoService {
 
 
             /*
-             * Ortografia tem prioridade visual.
+             * Prioridade visual:
+             *
+             * 1. Ortografia
+             * 2. ABNT
+             * 3. Humanização
              */
             if (
                     m.tipo ==
-                            TipoMarcacao.ORTOGRAFIA
+                    TipoMarcacao.ORTOGRAFIA
             ) {
 
                 return TipoMarcacao.ORTOGRAFIA;
@@ -1447,11 +1935,26 @@ public class DocumentoService {
 
             if (
                     m.tipo ==
-                            TipoMarcacao.GRAMATICA
+                    TipoMarcacao.ABNT
             ) {
 
                 resultado =
-                        TipoMarcacao.GRAMATICA;
+                        TipoMarcacao.ABNT;
+
+                continue;
+            }
+
+
+            if (
+                    m.tipo ==
+                    TipoMarcacao.HUMANIZACAO
+                            &&
+                    resultado ==
+                    TipoMarcacao.NENHUMA
+            ) {
+
+                resultado =
+                        TipoMarcacao.HUMANIZACAO;
             }
         }
 
@@ -1490,9 +1993,19 @@ public class DocumentoService {
         );
 
 
+        /*
+         * Legenda das marcações:
+         *
+         * vermelho -> ortografia
+         * ciano    -> ABNT
+         * magenta  -> humanização
+         *
+         * amarelo continua reservado
+         * às divergências do template.
+         */
         if (
                 tipo ==
-                        TipoMarcacao.ORTOGRAFIA
+                TipoMarcacao.ORTOGRAFIA
         ) {
 
             run.setTextHighlightColor(
@@ -1501,11 +2014,20 @@ public class DocumentoService {
 
         } else if (
                 tipo ==
-                        TipoMarcacao.GRAMATICA
+                TipoMarcacao.ABNT
         ) {
 
             run.setTextHighlightColor(
                     "cyan"
+            );
+
+        } else if (
+                tipo ==
+                TipoMarcacao.HUMANIZACAO
+        ) {
+
+            run.setTextHighlightColor(
+                    "magenta"
             );
         }
     }
@@ -1516,8 +2038,10 @@ public class DocumentoService {
             String cor
     ) {
 
-        for (XWPFRun run :
-                paragrafo.getRuns()) {
+        for (
+                XWPFRun run :
+                paragrafo.getRuns()
+        ) {
 
             run.setTextHighlightColor(
                     cor
@@ -1555,7 +2079,9 @@ public class DocumentoService {
         double twips;
 
 
-        if (valor instanceof BigInteger bi) {
+        if (
+                valor instanceof BigInteger bi
+        ) {
 
             twips =
                     bi.doubleValue();
@@ -1583,7 +2109,8 @@ public class DocumentoService {
                         twips /
                         1440.0 *
                         2.54
-                ) * 100.0
+                ) *
+                100.0
         ) / 100.0;
     }
 
@@ -1609,14 +2136,30 @@ public class DocumentoService {
 
         NENHUMA,
         ORTOGRAFIA,
-        GRAMATICA
+        ABNT,
+        HUMANIZACAO
+    }
+
+
+    /*
+     * Guarda simultaneamente:
+     *
+     * P0001 -> texto enviado para IA
+     * P0001 -> XWPFParagraph real do DOCX
+     */
+    private record ContextoEditorial(
+            List<TrechoEditorial> trechos,
+            Map<String, XWPFParagraph> paragrafosPorId
+    ) {
     }
 
 
     private static class Marcacao {
 
         private final int inicio;
+
         private final int fim;
+
         private final TipoMarcacao tipo;
 
 
@@ -1629,8 +2172,10 @@ public class DocumentoService {
             this.inicio =
                     inicio;
 
+
             this.fim =
                     fim;
+
 
             this.tipo =
                     tipo;
@@ -1641,7 +2186,9 @@ public class DocumentoService {
     private static class MarcacaoLocal {
 
         private final int inicio;
+
         private final int fim;
+
         private final TipoMarcacao tipo;
 
 
@@ -1654,8 +2201,10 @@ public class DocumentoService {
             this.inicio =
                     inicio;
 
+
             this.fim =
                     fim;
+
 
             this.tipo =
                     tipo;
@@ -1693,20 +2242,26 @@ public class DocumentoService {
             this.run =
                     run;
 
+
             this.indiceRun =
                     indiceRun;
+
 
             this.texto =
                     texto;
 
+
             this.inicioGlobal =
                     inicioGlobal;
+
 
             this.fimGlobal =
                     fimGlobal;
 
+
             this.hyperlink =
                     hyperlink;
+
 
             this.especial =
                     especial;
