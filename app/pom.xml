@@ -67,11 +67,6 @@
 			<version>8.11.2</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.languagetool</groupId>
-			<artifactId>language-pt</artifactId>
-			<version>6.8</version>
-		</dependency>
 
 	</dependencies>
 
