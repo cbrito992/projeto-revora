@@ -4,8 +4,8 @@ import br.com.carlos.revora.model.OcorrenciaEditorial;
 import br.com.carlos.revora.model.ResultadoAnaliseEditorial;
 import br.com.carlos.revora.model.TrechoEditorial;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -80,7 +80,7 @@ public class GeminiAnaliseEditorialIaService
     private String apiKey;
 
 
-    @Value("${revora.ia.gemini.model:gemini-2.5-flash}")
+    @Value("${revora.ia.gemini.model:gemini-3.6-flash}")
     private String model;
 
 
