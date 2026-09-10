@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="pt-BR">
 
 <head>
@@ -10,7 +9,12 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Revora - Revisão Ortogramatical e Normas</title>
+    <meta
+        name="description"
+        content="Revora — revisão ortográfica, editorial e validação de padrões em documentos DOCX."
+    >
+
+    <title>Revora — Revisão Editorial e Validação de Padrões</title>
 
     <link
         rel="stylesheet"
@@ -24,28 +28,37 @@
 
         <header class="app-header">
 
-            <h1>Revora</h1>
+            <div class="brand-mark" aria-hidden="true">
+                R
+            </div>
 
-            <p class="subtitle">
-                Revisão Ortogramatical e Validador de Normas
-            </p>
+            <div class="brand-copy">
+
+                <h1>
+                    Revora
+                </h1>
+
+                <p class="subtitle">
+                    Revisão ortográfica, editorial e validação de padrões
+                </p>
+
+            </div>
 
         </header>
 
 
         <main class="app-main">
 
-            <!-- ÁREA PRINCIPAL -->
-
             <section class="upload-panel">
 
                 <div class="section-heading">
 
-                    <h2>Revisar documento</h2>
+                    <h2>
+                        Revise seu documento
+                    </h2>
 
                     <p>
-                        Envie o modelo de referência e o documento que
-                        deseja analisar.
+                        Selecione o template de referência e o documento que deseja revisar.
                     </p>
 
                 </div>
@@ -55,16 +68,63 @@
 
                     <div class="form-group">
 
-                        <label for="template">
-                            Arquivo de Template
+                        <div class="field-heading">
+
+                            <span class="field-number" aria-hidden="true">
+                                01
+                            </span>
+
+                            <div>
+
+                                <label for="template">
+                                    Template de referência
+                                </label>
+
+                                <p class="field-description">
+                                    Modelo usado como base de estrutura e formatação.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <label
+                            class="file-picker"
+                            for="template"
+                        >
+
+                            <span
+                                class="file-picker-icon"
+                                aria-hidden="true"
+                            >
+                                ↑
+                            </span>
+
+                            <span class="file-picker-copy">
+
+                                <strong>
+                                    Selecionar template
+                                </strong>
+
+                                <span>
+                                    Arquivo DOCX de até 50 MB
+                                </span>
+
+                            </span>
+
+                            <span
+                                class="file-picker-action"
+                                aria-hidden="true"
+                            >
+                                Procurar
+                            </span>
+
                         </label>
 
-                        <p class="field-description">
-                            Selecione o modelo que será usado como referência
-                            de estrutura e formatação.
-                        </p>
 
                         <input
+                            class="file-input"
                             type="file"
                             id="template"
                             accept=".docx"
@@ -76,15 +136,63 @@
 
                     <div class="form-group">
 
-                        <label for="documento">
-                            Documento para Revisar
+                        <div class="field-heading">
+
+                            <span class="field-number" aria-hidden="true">
+                                02
+                            </span>
+
+                            <div>
+
+                                <label for="documento">
+                                    Documento para revisar
+                                </label>
+
+                                <p class="field-description">
+                                    Arquivo que receberá as marcações e o relatório.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <label
+                            class="file-picker"
+                            for="documento"
+                        >
+
+                            <span
+                                class="file-picker-icon"
+                                aria-hidden="true"
+                            >
+                                ↑
+                            </span>
+
+                            <span class="file-picker-copy">
+
+                                <strong>
+                                    Selecionar documento
+                                </strong>
+
+                                <span>
+                                    Arquivo DOCX de até 50 MB
+                                </span>
+
+                            </span>
+
+                            <span
+                                class="file-picker-action"
+                                aria-hidden="true"
+                            >
+                                Procurar
+                            </span>
+
                         </label>
 
-                        <p class="field-description">
-                            Selecione o arquivo que será analisado pelo Revora.
-                        </p>
 
                         <input
+                            class="file-input"
                             type="file"
                             id="documento"
                             accept=".docx"
@@ -94,12 +202,29 @@
                     </div>
 
 
-                    <button
-                        type="submit"
-                        id="btnSubmit"
-                    >
-                        Iniciar Revisão
-                    </button>
+                    <div class="submit-area">
+
+                        <button
+                            type="submit"
+                            id="btnSubmit"
+                        >
+                            <span>
+                                Iniciar revisão
+                            </span>
+
+                            <span
+                                class="button-arrow"
+                                aria-hidden="true"
+                            >
+                                →
+                            </span>
+                        </button>
+
+                        <p class="privacy-note">
+                            Os arquivos são usados somente durante o processamento.
+                        </p>
+
+                    </div>
 
                 </form>
 
@@ -107,13 +232,35 @@
                 <section
                     id="loadingSection"
                     class="loading-section"
+                    aria-live="polite"
                 >
 
-                    <span id="loadingText">
-                        Analisando documento...
-                    </span>
+                    <div class="loading-heading">
 
-                    <div class="progress-bar-container">
+                        <div>
+
+                            <span class="loading-label">
+                                PROCESSANDO
+                            </span>
+
+                            <strong id="loadingText">
+                                Analisando documento...
+                            </strong>
+
+                        </div>
+
+                        <span class="loading-pulse" aria-hidden="true"></span>
+
+                    </div>
+
+
+                    <div
+                        class="progress-bar-container"
+                        role="progressbar"
+                        aria-label="Progresso da revisão"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                    >
 
                         <div
                             class="progress-bar"
@@ -127,76 +274,147 @@
             </section>
 
 
-            <!-- ÁREA DE AJUDA -->
-
             <aside class="support-panel">
 
                 <section class="legend-section">
 
-                    <div class="support-title">
-                        Tipos de revisão
-                    </div>
+                    <div class="support-heading">
 
-
-                    <div class="legend-item">
-
-                        <div class="color-dot dot-red"></div>
-
-                        <div class="legend-content">
-                            <strong>Ortografia</strong>
-                            <span class="legend-separator">—</span>
-                            <span>
-                                possíveis palavras grafadas incorretamente.
-                            </span>
-                        </div>
+                        <h2 class="support-title">
+                            O que o Revora analisa
+                        </h2>
 
                     </div>
 
 
-                    <div class="legend-item">
+                    <div class="legend-list">
 
-                        <div class="color-dot dot-blue"></div>
+                        <div class="legend-item">
 
-                        <div class="legend-content">
-                            <strong>Gramática e contexto</strong>
-                            <span class="legend-separator">—</span>
-                            <span>
-                                possíveis problemas de concordância,
-                                construção ou uso contextual.
-                            </span>
+                            <div
+                                class="color-dot dot-red"
+                                aria-hidden="true"
+                            ></div>
+
+                            <div class="legend-content">
+
+                                <div class="legend-title-row">
+                                    <strong>Ortografia</strong>
+
+                                    <span class="legend-badge">
+                                        Dicionário
+                                    </span>
+                                </div>
+
+                                <span>
+                                    Possíveis palavras grafadas incorretamente.
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="legend-item">
+
+                            <div
+                                class="color-dot dot-yellow"
+                                aria-hidden="true"
+                            ></div>
+
+                            <div class="legend-content">
+
+                                <div class="legend-title-row">
+                                    <strong>Padronização do template</strong>
+
+                                    <span class="legend-badge">
+                                        Modelo
+                                    </span>
+                                </div>
+
+                                <span>
+                                    Estrutura, formatação, margens e padrões do modelo.
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="legend-item">
+
+                            <div
+                                class="color-dot dot-cyan"
+                                aria-hidden="true"
+                            ></div>
+
+                            <div class="legend-content">
+
+                                <div class="legend-title-row">
+                                    <strong>ABNT</strong>
+
+                                    <span class="legend-badge legend-badge-ai">
+                                        IA
+                                    </span>
+                                </div>
+
+                                <span>
+                                    Citações, referências e apresentação bibliográfica.
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="legend-item">
+
+                            <div
+                                class="color-dot dot-magenta"
+                                aria-hidden="true"
+                            ></div>
+
+                            <div class="legend-content">
+
+                                <div class="legend-title-row">
+                                    <strong>Humanização textual</strong>
+
+                                    <span class="legend-badge legend-badge-ai">
+                                        IA
+                                    </span>
+                                </div>
+
+                                <span>
+                                    Repetições, construções genéricas ou mecanizadas.
+                                </span>
+
+                            </div>
+
                         </div>
 
                     </div>
 
+                </section>
 
-                    <div class="legend-item">
 
-                        <div class="color-dot dot-yellow"></div>
+                <section class="availability-card">
 
-                        <div class="legend-content">
-                            <strong>Formatação</strong>
-                            <span class="legend-separator">—</span>
-                            <span>
-                                desvios em relação ao padrão definido
-                                pelo template.
-                            </span>
-                        </div>
-
+                    <div
+                        class="availability-icon"
+                        aria-hidden="true"
+                    >
+                        ◇
                     </div>
 
+                    <div>
 
-                    <div class="legend-item">
+                        <strong>
+                            IA complementar
+                        </strong>
 
-                        <div class="color-dot dot-orange"></div>
-
-                        <div class="legend-content">
-                            <strong>Estrutura</strong>
-                            <span class="legend-separator">—</span>
-                            <span>
-                                elementos esperados que não foram
-                                encontrados no documento.
-                            </span>
-                        </div>
+                        <p>
+                            Se a IA estiver indisponível, ortografia e template continuam funcionando.
+                        </p>
 
                     </div>
 
@@ -205,24 +423,27 @@
 
                 <section class="instructions-section">
 
-                    <div class="support-title">
-                        Após a revisão
+                    <h2 class="support-title">
+                        Depois da revisão
+                    </h2>
+
+                    <p>
+                        O Revora mantém os destaques e adiciona um relatório ao final do documento.
+                    </p>
+
+                    <div class="instruction-note">
+
+                        <strong>
+                            Remover destaques
+                        </strong>
+
+                        <span>
+                            No Word: <strong>Cor do Realce de Texto → Sem Cor</strong>.
+                        </span>
+
                     </div>
 
-                    <p>
-                        As marcações são mantidas no arquivo para facilitar
-                        a conferência das sugestões.
-                    </p>
-
-                    <p>
-                        Depois de realizar as correções, selecione o conteúdo
-                        do documento no Word e, em
-                        <strong>Cor do Realce de Texto</strong>,
-                        escolha <strong>Sem Cor</strong>.
-                    </p>
-
-                    <p class="instruction-note">
-                        O Revora aponta possíveis problemas.
+                    <p class="reviewer-note">
                         A decisão final de alteração permanece com o revisor.
                     </p>
 
@@ -235,27 +456,29 @@
 
         <footer class="footer">
 
-            <span>
-                © 2026 Revora
-            </span>
+            <div>
+                <strong>Revora</strong>
+                <span>© 2026</span>
+            </div>
 
-            <span class="footer-separator">
-                •
-            </span>
+            <div class="footer-meta">
 
-            <span>
+                <span>
+                    Versão 0.1.0
+                </span>
 
-            Versão 0.1.0
+                <span
+                    class="footer-separator"
+                    aria-hidden="true"
+                >
+                    •
+                </span>
 
-            </span>
+                <span>
+                    Desenvolvido por Carlos A. B. Oliveira
+                </span>
 
-            <span class="footer-separator">
-                •
-            </span>
-
-            <span>
-                Desenvolvido por Carlos A. B. Oliveira
-            </span>
+            </div>
 
         </footer>
 

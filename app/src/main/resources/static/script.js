@@ -4,6 +4,7 @@ const clickSound =
 const errorSound =
     new Audio('mixkit-click-error-1110.wav');
 
+
 const MAX_FILE_SIZE =
     50 * 1024 * 1024;
 
@@ -16,9 +17,82 @@ const REQUEST_TIMEOUT =
 
 /**
  * =========================================================
+ * ELEMENTOS PRINCIPAIS DA INTERFACE
+ * =========================================================
+ */
+
+const uploadForm =
+    document.getElementById(
+        'uploadForm'
+    );
+
+const templateInput =
+    document.getElementById(
+        'template'
+    );
+
+const documentoInput =
+    document.getElementById(
+        'documento'
+    );
+
+const btnSubmit =
+    document.getElementById(
+        'btnSubmit'
+    );
+
+const loadingSection =
+    document.getElementById(
+        'loadingSection'
+    );
+
+const loadingText =
+    document.getElementById(
+        'loadingText'
+    );
+
+const progressBar =
+    document.getElementById(
+        'progressBar'
+    );
+
+
+/**
+ * =========================================================
+ * SOM
+ * =========================================================
+ */
+
+function tocarSom(
+    audio
+) {
+
+    if (!audio) {
+        return;
+    }
+
+
+    audio
+        .play()
+        .catch(
+            () => {
+
+                /*
+                 * O som é apenas complementar.
+                 * Uma falha de reprodução não deve
+                 * interferir no funcionamento do Revora.
+                 */
+            }
+        );
+}
+
+
+/**
+ * =========================================================
  * FETCH COM TIMEOUT
  * =========================================================
  */
+
 async function fetchComTimeout(
     url,
     options = {},
@@ -28,11 +102,13 @@ async function fetchComTimeout(
     const controller =
         new AbortController();
 
+
     const timer =
         setTimeout(
             () => controller.abort(),
             timeout
         );
+
 
     try {
 
@@ -40,6 +116,7 @@ async function fetchComTimeout(
             url,
             {
                 ...options,
+
                 signal:
                     controller.signal
             }
@@ -47,8 +124,297 @@ async function fetchComTimeout(
 
     } finally {
 
-        clearTimeout(timer);
+        clearTimeout(
+            timer
+        );
     }
+}
+
+
+/**
+ * =========================================================
+ * UTILITÁRIOS VISUAIS
+ * =========================================================
+ */
+
+function formatarTamanhoArquivo(
+    bytes
+) {
+
+    if (
+        !Number.isFinite(bytes)
+        ||
+        bytes <= 0
+    ) {
+
+        return '0 KB';
+    }
+
+
+    const mb =
+        bytes / (1024 * 1024);
+
+
+    if (mb >= 1) {
+
+        return `${mb.toFixed(2)} MB`;
+    }
+
+
+    const kb =
+        bytes / 1024;
+
+
+    return `${Math.max(
+        1,
+        Math.round(kb)
+    )} KB`;
+}
+
+
+function obterFilePicker(
+    inputElement
+) {
+
+    if (!inputElement) {
+        return null;
+    }
+
+
+    return document.querySelector(
+        `.file-picker[for="${inputElement.id}"]`
+    );
+}
+
+
+function atualizarVisualArquivo(
+    inputElement,
+    file
+) {
+
+    const picker =
+        obterFilePicker(
+            inputElement
+        );
+
+
+    if (!picker) {
+        return;
+    }
+
+
+    const titulo =
+        picker.querySelector(
+            '.file-picker-copy strong'
+        );
+
+    const descricao =
+        picker.querySelector(
+            '.file-picker-copy span'
+        );
+
+
+    if (
+        !titulo
+        ||
+        !descricao
+    ) {
+
+        return;
+    }
+
+
+    /*
+     * Nenhum arquivo selecionado.
+     */
+    if (!file) {
+
+        if (
+            inputElement.id ===
+            'template'
+        ) {
+
+            titulo.textContent =
+                'Selecionar template';
+
+        } else {
+
+            titulo.textContent =
+                'Selecionar documento';
+        }
+
+
+        descricao.textContent =
+            'Arquivo DOCX de até 50 MB';
+
+
+        picker.classList.remove(
+            'has-file'
+        );
+
+
+        picker.removeAttribute(
+            'title'
+        );
+
+
+        return;
+    }
+
+
+    /*
+     * Arquivo válido selecionado.
+     */
+    titulo.textContent =
+        file.name;
+
+
+    descricao.textContent =
+        `DOCX • ${formatarTamanhoArquivo(file.size)} • arquivo selecionado`;
+
+
+    picker.classList.add(
+        'has-file'
+    );
+
+
+    picker.title =
+        file.name;
+}
+
+
+function atualizarBotao(
+    texto,
+    desabilitado
+) {
+
+    if (!btnSubmit) {
+        return;
+    }
+
+
+    btnSubmit.disabled =
+        desabilitado;
+
+
+    const textoBotao =
+        btnSubmit.querySelector(
+            'span:first-child'
+        );
+
+
+    if (textoBotao) {
+
+        textoBotao.textContent =
+            texto;
+
+    } else {
+
+        btnSubmit.textContent =
+            texto;
+    }
+}
+
+
+function atualizarProgresso(
+    percentual,
+    mensagem
+) {
+
+    const valor =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                percentual
+            )
+        );
+
+
+    if (progressBar) {
+
+        progressBar.style.width =
+            `${valor}%`;
+
+
+        const container =
+            progressBar.parentElement;
+
+
+        if (container) {
+
+            container.setAttribute(
+                'aria-valuenow',
+                String(valor)
+            );
+        }
+    }
+
+
+    if (
+        loadingText
+        &&
+        mensagem
+    ) {
+
+        loadingText.textContent =
+            mensagem;
+    }
+}
+
+
+function mostrarCarregamento() {
+
+    if (loadingSection) {
+
+        loadingSection.style.display =
+            'block';
+    }
+
+
+    if (uploadForm) {
+
+        uploadForm.setAttribute(
+            'aria-busy',
+            'true'
+        );
+    }
+}
+
+
+function esconderCarregamento() {
+
+    if (loadingSection) {
+
+        loadingSection.style.display =
+            'none';
+    }
+
+
+    if (uploadForm) {
+
+        uploadForm.removeAttribute(
+            'aria-busy'
+        );
+    }
+}
+
+
+function resetUI() {
+
+    atualizarBotao(
+        'Iniciar revisão',
+        false
+    );
+
+
+    atualizarProgresso(
+        0,
+        'Analisando documento...'
+    );
+
+
+    esconderCarregamento();
 }
 
 
@@ -57,47 +423,104 @@ async function fetchComTimeout(
  * VALIDAÇÃO DO ARQUIVO
  * =========================================================
  */
+
 function validarExtensao(
     inputElement
 ) {
 
+    if (!inputElement) {
+        return false;
+    }
+
+
     const file =
         inputElement.files[0];
 
+
+    /*
+     * Usuário removeu/cancelou o arquivo.
+     */
+    if (!file) {
+
+        atualizarVisualArquivo(
+            inputElement,
+            null
+        );
+
+
+        return true;
+    }
+
+
+    /*
+     * Valida extensão.
+     */
     if (
-        file &&
         !file.name
             .toLowerCase()
             .endsWith('.docx')
     ) {
 
-        errorSound.play();
+        tocarSom(
+            errorSound
+        );
+
 
         alert(
             'Formato inválido. Por favor, envie apenas arquivos .docx.'
         );
 
-        inputElement.value = '';
+
+        inputElement.value =
+            '';
+
+
+        atualizarVisualArquivo(
+            inputElement,
+            null
+        );
+
 
         return false;
     }
 
 
+    /*
+     * Valida tamanho máximo.
+     */
     if (
-        file &&
-        file.size > MAX_FILE_SIZE
+        file.size >
+        MAX_FILE_SIZE
     ) {
 
-        errorSound.play();
+        tocarSom(
+            errorSound
+        );
+
 
         alert(
             'O limite é de 50 MB por arquivo.'
         );
 
-        inputElement.value = '';
+
+        inputElement.value =
+            '';
+
+
+        atualizarVisualArquivo(
+            inputElement,
+            null
+        );
+
 
         return false;
     }
+
+
+    atualizarVisualArquivo(
+        inputElement,
+        file
+    );
 
 
     return true;
@@ -109,6 +532,7 @@ function validarExtensao(
  * LEITURA PADRONIZADA DAS RESPOSTAS
  * =========================================================
  */
+
 async function lerJson(
     response
 ) {
@@ -124,7 +548,8 @@ async function lerJson(
     if (!response.ok) {
 
         throw new Error(
-            data.erro ||
+            data.erro
+            ||
             `O servidor retornou erro HTTP ${response.status}.`
         );
     }
@@ -139,6 +564,7 @@ async function lerJson(
  * CRIAÇÃO DA SESSÃO
  * =========================================================
  */
+
 async function criarSessao(
     templateFile,
     documentoFile
@@ -176,9 +602,10 @@ async function criarSessao(
 
 /**
  * =========================================================
- * UPLOAD DIRETO PARA O BLOB
+ * UPLOAD DIRETO PARA O VERCEL BLOB
  * =========================================================
  */
+
 async function enviarArquivo(
     url,
     file,
@@ -209,6 +636,7 @@ async function enviarArquivo(
                     'PUT',
 
                 headers: {
+
                     'Content-Type':
                         DOCX_MIME,
 
@@ -241,6 +669,7 @@ async function enviarArquivo(
  * URLs PARA O BACKEND JAVA
  * =========================================================
  */
+
 async function obterAcessoProcessamento(
     sessao,
     templatePathname,
@@ -276,8 +705,10 @@ async function obterAcessoProcessamento(
 
 
     if (
-        !acesso.templateReadUrl ||
-        !acesso.documentoReadUrl ||
+        !acesso.templateReadUrl
+        ||
+        !acesso.documentoReadUrl
+        ||
         !acesso.resultadoUploadUrl
     ) {
 
@@ -296,6 +727,7 @@ async function obterAcessoProcessamento(
  * PROCESSAMENTO JAVA
  * =========================================================
  */
+
 async function processarDocumento(
     acesso
 ) {
@@ -314,6 +746,7 @@ async function processarDocumento(
 
                 body:
                     JSON.stringify({
+
                         sessao:
                             acesso.sessao,
 
@@ -329,8 +762,13 @@ async function processarDocumento(
             },
 
             /*
-             * A revisão pode levar mais que
-             * uma requisição HTTP comum.
+             * A revisão pode envolver:
+             *
+             * - leitura do DOCX;
+             * - Hunspell;
+             * - comparação com template;
+             * - análise editorial por IA;
+             * - geração do novo DOCX.
              */
             5 * 60 * 1000
         );
@@ -347,6 +785,7 @@ async function processarDocumento(
  * URL DE DOWNLOAD
  * =========================================================
  */
+
 async function obterDownload(
     sessao
 ) {
@@ -394,6 +833,7 @@ async function obterDownload(
  * DOWNLOAD DO RESULTADO
  * =========================================================
  */
+
 async function baixarDocumento(
     url
 ) {
@@ -423,6 +863,7 @@ async function baixarDocumento(
  * LIMPEZA DA SESSÃO
  * =========================================================
  */
+
 async function limparSessao(
     sessao
 ) {
@@ -455,8 +896,8 @@ async function limparSessao(
     } catch (error) {
 
         /*
-         * Falha de limpeza não deve impedir
-         * a entrega do resultado ao usuário.
+         * Falha de limpeza não impede
+         * a entrega do documento ao usuário.
          */
         console.warn(
             'Não foi possível limpar a sessão temporária.'
@@ -470,6 +911,7 @@ async function limparSessao(
  * DOWNLOAD LOCAL
  * =========================================================
  */
+
 function salvarDocumento(
     blob
 ) {
@@ -479,6 +921,7 @@ function salvarDocumento(
             blob
         );
 
+
     const link =
         document.createElement(
             'a'
@@ -487,6 +930,7 @@ function salvarDocumento(
 
     link.href =
         url;
+
 
     link.download =
         'documento_revisado.docx';
@@ -499,6 +943,7 @@ function salvarDocumento(
 
 
     link.click();
+
 
     link.remove();
 
@@ -521,11 +966,10 @@ function salvarDocumento(
  * EVENTOS DOS INPUTS
  * =========================================================
  */
-document
-    .getElementById(
-        'template'
-    )
-    .addEventListener(
+
+if (templateInput) {
+
+    templateInput.addEventListener(
         'change',
         function () {
 
@@ -534,13 +978,12 @@ document
             );
         }
     );
+}
 
 
-document
-    .getElementById(
-        'documento'
-    )
-    .addEventListener(
+if (documentoInput) {
+
+    documentoInput.addEventListener(
         'change',
         function () {
 
@@ -549,6 +992,7 @@ document
             );
         }
     );
+}
 
 
 /**
@@ -556,70 +1000,64 @@ document
  * PROCESSO PRINCIPAL
  * =========================================================
  */
-document
-    .getElementById(
-        'uploadForm'
-    )
-    .addEventListener(
+
+if (uploadForm) {
+
+    uploadForm.addEventListener(
         'submit',
         async function (e) {
 
             e.preventDefault();
 
-            clickSound.play();
 
+            tocarSom(
+                clickSound
+            );
 
-            const templateInput =
-                document.getElementById(
-                    'template'
-                );
-
-            const documentoInput =
-                document.getElementById(
-                    'documento'
-                );
 
             const templateFile =
-                templateInput.files[0];
+                templateInput
+                    ? templateInput.files[0]
+                    : null;
+
 
             const documentoFile =
-                documentoInput.files[0];
-
-            const btnSubmit =
-                document.getElementById(
-                    'btnSubmit'
-                );
-
-            const loadingSection =
-                document.getElementById(
-                    'loadingSection'
-                );
-
-            const progressBar =
-                document.getElementById(
-                    'progressBar'
-                );
+                documentoInput
+                    ? documentoInput.files[0]
+                    : null;
 
 
+            /*
+             * Confirma presença dos dois arquivos.
+             */
             if (
-                !templateFile ||
+                !templateFile
+                ||
                 !documentoFile
             ) {
 
-                errorSound.play();
+                tocarSom(
+                    errorSound
+                );
+
 
                 alert(
                     'Selecione o template e o documento que deseja revisar.'
                 );
 
+
                 return;
             }
 
 
+            /*
+             * Nova validação antes do envio.
+             */
             if (
                 !validarExtensao(
                     templateInput
-                ) ||
+                )
+                ||
                 !validarExtensao(
                     documentoInput
                 )
@@ -633,39 +1071,29 @@ document
                 null;
 
 
-            function resetUI() {
-
-                btnSubmit.disabled =
-                    false;
-
-                btnSubmit.innerText =
-                    'Iniciar Revisão';
-
-                loadingSection.style.display =
-                    'none';
-
-                progressBar.style.width =
-                    '0%';
-            }
+            atualizarBotao(
+                'Processando...',
+                true
+            );
 
 
-            btnSubmit.disabled =
-                true;
-            btnSubmit.innerText =
-                'Processando...';
+            mostrarCarregamento();
 
-            loadingSection.style.display =
-                'block';
 
-            progressBar.style.width =
-                '5%';
+            atualizarProgresso(
+                5,
+                'Preparando a revisão...'
+            );
 
 
             try {
 
                 /*
-                 * 1. Cria sessão.
+                 * =================================================
+                 * 1. CRIA SESSÃO
+                 * =================================================
                  */
+
                 const dadosSessao =
                     await criarSessao(
                         templateFile,
@@ -685,15 +1113,21 @@ document
                 }
 
 
-                progressBar.style.width =
-                    '15%';
+                atualizarProgresso(
+                    15,
+                    'Sessão criada. Enviando arquivos...'
+                );
 
 
                 /*
-                 * 2. Envia os dois arquivos.
+                 * =================================================
+                 * 2. ENVIA TEMPLATE E DOCUMENTO
+                 * =================================================
                  */
+
                 if (
-                    !dadosSessao.templatePathname ||
+                    !dadosSessao.templatePathname
+                    ||
                     !dadosSessao.documentoPathname
                 ) {
 
@@ -704,6 +1138,7 @@ document
 
 
                 await Promise.all([
+
                     enviarArquivo(
                         dadosSessao
                             .templateUploadUrl,
@@ -723,98 +1158,135 @@ document
                         dadosSessao
                             .documentoPathname
                     )
+
                 ]);
 
 
-                progressBar.style.width =
-                    '45%';
+                atualizarProgresso(
+                    45,
+                    'Arquivos enviados. Preparando análise...'
+                );
 
 
                 /*
-                 * 3. Obtém URLs GET/PUT
-                 * específicas para o Java.
+                 * =================================================
+                 * 3. GERA ACESSOS PARA O JAVA
+                 * =================================================
                  */
+
                 const acesso =
                     await obterAcessoProcessamento(
                         sessao,
+
                         dadosSessao
                             .templatePathname,
+
                         dadosSessao
                             .documentoPathname
                     );
 
 
-                progressBar.style.width =
-                    '55%';
+                atualizarProgresso(
+                    55,
+                    'Revisando ortografia, padrões e conteúdo editorial...'
+                );
 
 
                 /*
-                 * 4. Java revisa o DOCX.
+                 * =================================================
+                 * 4. PROCESSAMENTO DO DOCUMENTO
+                 * =================================================
+                 *
+                 * Se a IA estiver indisponível, o backend
+                 * continua com Hunspell + Template.
                  */
+
                 await processarDocumento(
                     acesso
                 );
 
 
-                progressBar.style.width =
-                    '85%';
+                atualizarProgresso(
+                    85,
+                    'Revisão concluída. Preparando o arquivo...'
+                );
 
 
                 /*
-                 * 5. Solicita URL do resultado.
+                 * =================================================
+                 * 5. GERA URL PARA DOWNLOAD
+                 * =================================================
                  */
+
                 const download =
                     await obterDownload(
                         sessao
                     );
 
 
-                progressBar.style.width =
-                    '90%';
+                atualizarProgresso(
+                    90,
+                    'Preparando download...'
+                );
 
 
                 /*
-                 * 6. Baixa o resultado.
+                 * =================================================
+                 * 6. BAIXA O RESULTADO
+                 * =================================================
                  */
+
                 const arquivoRevisado =
                     await baixarDocumento(
                         download.downloadUrl
                     );
 
 
-                progressBar.style.width =
-                    '98%';
+                atualizarProgresso(
+                    97,
+                    'Finalizando...'
+                );
 
 
                 /*
-                 * 7. Remove os temporários.
+                 * =================================================
+                 * 7. REMOVE ARQUIVOS TEMPORÁRIOS
+                 * =================================================
                  */
+
                 await limparSessao(
                     sessao
                 );
+
 
                 sessao =
                     null;
 
 
                 /*
-                 * 8. Salva no computador.
+                 * =================================================
+                 * 8. SALVA NO COMPUTADOR
+                 * =================================================
                  */
+
                 salvarDocumento(
                     arquivoRevisado
                 );
 
 
-                progressBar.style.width =
-                    '100%';
+                atualizarProgresso(
+                    100,
+                    'Revisão concluída.'
+                );
 
 
                 setTimeout(
                     () => {
 
                         alert(
-                            'Revisão concluída! O arquivo foi baixado.'
+                            'Revisão concluída! O arquivo revisado foi baixado.'
                         );
+
 
                         resetUI();
 
@@ -825,6 +1297,22 @@ document
 
             } catch (error) {
 
+                /*
+                 * =================================================
+                 * TRATAMENTO DE ERRO
+                 * =================================================
+                 */
+
+                atualizarProgresso(
+                    0,
+                    'Não foi possível concluir a revisão.'
+                );
+
+
+                /*
+                 * Mesmo com erro, tenta limpar
+                 * arquivos temporários.
+                 */
                 if (sessao) {
 
                     await limparSessao(
@@ -833,7 +1321,9 @@ document
                 }
 
 
-                errorSound.play();
+                tocarSom(
+                    errorSound
+                );
 
 
                 let mensagem =
@@ -861,7 +1351,8 @@ document
 
 
                 alert(
-                    'Erro no processamento: ' +
+                    'Erro no processamento: '
+                    +
                     mensagem
                 );
 
@@ -870,3 +1361,28 @@ document
             }
         }
     );
+}
+
+
+/**
+ * =========================================================
+ * ESTADO INICIAL DOS SELETORES
+ * =========================================================
+ */
+
+atualizarVisualArquivo(
+    templateInput,
+
+    templateInput
+        ? templateInput.files[0]
+        : null
+);
+
+
+atualizarVisualArquivo(
+    documentoInput,
+
+    documentoInput
+        ? documentoInput.files[0]
+        : null
+);
