@@ -32,22 +32,33 @@ public class ArquivoRemotoService {
 
 
     /*
-     * URLs privadas do Vercel Blob podem usar
-     * identificadores contendo "_".
+     * URLs de leitura de blobs privados usam o host:
      *
-     * Exemplo:
+     * <store>.private.blob.vercel-storage.com
      *
-     * store_abc123.private.blob.vercel-storage.com
-     *
-     * java.net.URI#getHost() pode retornar null
-     * para esse formato. Por isso a validação
-     * passa a utilizar java.net.URL.
+     * O identificador do store pode conter "_".
      */
     private static final Pattern VERCEL_PRIVATE_BLOB_HOST =
             Pattern.compile(
                     "^[A-Za-z0-9_-]+\\.private\\.blob\\.vercel-storage\\.com$",
                     Pattern.CASE_INSENSITIVE
             );
+
+
+    /*
+     * URLs assinadas de escrita (PUT) do @vercel/blob atual
+     * podem apontar para o control plane da Vercel.
+     *
+     * Em vez de liberar qualquer host da Vercel, aceitamos
+     * somente o host e o caminho específicos usados pela API
+     * de Blob.
+     */
+    private static final String VERCEL_BLOB_CONTROL_HOST =
+            "vercel.com";
+
+
+    private static final String VERCEL_BLOB_CONTROL_PATH =
+            "/api/blob";
 
 
     /**
@@ -60,7 +71,7 @@ public class ArquivoRemotoService {
     ) throws IOException {
 
         URL endereco =
-                validarUrlBlob(
+                validarUrlLeituraBlob(
                         url
                 );
 
@@ -182,7 +193,7 @@ public class ArquivoRemotoService {
 
 
         URL endereco =
-                validarUrlBlob(
+                validarUrlUploadBlob(
                         url
                 );
 
@@ -205,10 +216,6 @@ public class ArquivoRemotoService {
             );
 
 
-            /*
-             * Mesmos cabeçalhos usados pelo
-             * upload direto do frontend.
-             */
             conexao.setRequestProperty(
                     "Content-Type",
                     DOCX_MIME
@@ -332,11 +339,8 @@ public class ArquivoRemotoService {
         /*
          * Não seguimos redirects.
          *
-         * A URL assinada pelo Blob já deve apontar
-         * diretamente para o destino autorizado.
-         *
-         * Isso também impede que um eventual redirect
-         * leve o backend para outra origem.
+         * Isso evita que uma URL inicialmente autorizada
+         * redirecione o backend para uma origem diferente.
          */
         conexao.setInstanceFollowRedirects(
                 false
@@ -354,10 +358,129 @@ public class ArquivoRemotoService {
 
     /**
      * =========================================================
-     * VALIDAÇÃO DA ORIGEM
+     * VALIDAÇÃO DAS URLs
      * =========================================================
      */
-    private URL validarUrlBlob(
+
+    /*
+     * URLs de GET precisam apontar diretamente para
+     * o host privado do Vercel Blob.
+     */
+    private URL validarUrlLeituraBlob(
+            String valor
+    ) {
+
+        URL endereco =
+                criarUrlHttpsSegura(
+                        valor
+                );
+
+
+        String host =
+                endereco.getHost();
+
+
+        if (
+                host == null
+                        ||
+                host.isBlank()
+                        ||
+                !VERCEL_PRIVATE_BLOB_HOST
+                        .matcher(
+                                host
+                        )
+                        .matches()
+        ) {
+
+            throw new IllegalArgumentException(
+                    "Origem de leitura do arquivo não autorizada."
+            );
+        }
+
+
+        return endereco;
+    }
+
+
+    /*
+     * URLs de PUT podem ter duas formas:
+     *
+     * 1. host privado do próprio Blob;
+     * 2. URL assinada do control plane:
+     *    https://vercel.com/api/blob?...assinatura...
+     *
+     * Mantemos uma allowlist estrita para não transformar
+     * o backend em um cliente HTTP para destinos arbitrários.
+     */
+    private URL validarUrlUploadBlob(
+            String valor
+    ) {
+
+        URL endereco =
+                criarUrlHttpsSegura(
+                        valor
+                );
+
+
+        String host =
+                endereco.getHost();
+
+
+        String path =
+                endereco.getPath();
+
+
+        boolean hostPrivadoBlob =
+                host != null
+                        &&
+                VERCEL_PRIVATE_BLOB_HOST
+                        .matcher(
+                                host
+                        )
+                        .matches();
+
+
+        boolean controlPlaneBlob =
+                host != null
+                        &&
+                VERCEL_BLOB_CONTROL_HOST
+                        .equalsIgnoreCase(
+                                host
+                        )
+                        &&
+                path != null
+                        &&
+                (
+                        path.equals(
+                                VERCEL_BLOB_CONTROL_PATH
+                        )
+                                ||
+                        path.startsWith(
+                                VERCEL_BLOB_CONTROL_PATH + "/"
+                        )
+                );
+
+
+        if (
+                !hostPrivadoBlob
+                        &&
+                !controlPlaneBlob
+        ) {
+
+            throw new IllegalArgumentException(
+                    "Origem de upload do arquivo não autorizada."
+            );
+        }
+
+
+        return endereco;
+    }
+
+
+    /*
+     * Regras comuns de segurança para qualquer URL aceita.
+     */
+    private URL criarUrlHttpsSegura(
             String valor
     ) {
 
@@ -400,19 +523,6 @@ public class ArquivoRemotoService {
                 endereco.getHost();
 
 
-        /*
-         * Não aceitamos:
-         *
-         * - HTTP;
-         * - outro domínio;
-         * - user info;
-         * - porta customizada;
-         * - fragmento.
-         *
-         * O "_" é permitido somente no identificador
-         * do store porque a Vercel pode utilizá-lo
-         * em URLs privadas assinadas.
-         */
         if (
                 !"https".equalsIgnoreCase(
                         protocolo
@@ -427,12 +537,6 @@ public class ArquivoRemotoService {
                 endereco.getPort() != -1
                         ||
                 endereco.getRef() != null
-                        ||
-                !VERCEL_PRIVATE_BLOB_HOST
-                        .matcher(
-                                host
-                        )
-                        .matches()
         ) {
 
             throw new IllegalArgumentException(
