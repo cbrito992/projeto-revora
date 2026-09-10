@@ -276,16 +276,61 @@ public class DocumentoService {
 
 
             /*
-             * Análise editorial por IA.
+             * =========================================================
+             * ANÁLISE EDITORIAL POR IA
+             * =========================================================
+             *
+             * A IA é uma camada complementar do Revora.
+             *
+             * Falhas externas do provedor de IA não devem impedir:
+             *
+             * - a revisão ortográfica pelo Hunspell;
+             * - a validação de estrutura e formatação pelo template;
+             * - a geração do documento revisado.
              *
              * Quando revora.ia.enabled=false, a implementação
              * configurada retorna uma lista vazia e nenhuma
              * chamada externa é realizada.
              */
             ResultadoAnaliseEditorial resultado =
-                    analiseEditorialIaService.analisar(
-                            contexto.trechos()
+                    new ResultadoAnaliseEditorial(
+                            List.of()
                     );
+
+
+            try {
+
+                resultado =
+                        analiseEditorialIaService.analisar(
+                                contexto.trechos()
+                        );
+
+
+            } catch (Exception e) {
+
+                /*
+                 * A análise por IA falhou, mas o restante
+                 * da revisão continua normalmente.
+                 */
+                System.err.println(
+                        "Análise editorial por IA indisponível: "
+                                +
+                        e.getClass().getName()
+                                +
+                        " - "
+                                +
+                        e.getMessage()
+                );
+
+
+                relatorio.add(
+                        "Análise editorial por IA temporariamente indisponível. "
+                                +
+                        "A revisão ortográfica e a validação de padronização "
+                                +
+                        "foram concluídas normalmente."
+                );
+            }
 
 
             aplicarResultadoEditorial(
