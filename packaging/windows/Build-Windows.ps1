@@ -4,13 +4,13 @@ param(
     [string]$Version = '0.2.0'
 )
 $ErrorActionPreference = 'Stop'
-if ($env:OS -ne 'Windows_NT') { throw 'Gere este pacote no Windows com JDK 21 x64.' }
+if ($env:OS -ne 'Windows_NT') { throw 'Gere este pacote no Windows com JDK 17 x64.' }
 if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$') { throw 'Versao invalida.' }
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $repo 'dist' }
-if (-not $JdkHome -or -not (Test-Path (Join-Path $JdkHome 'bin\jlink.exe'))) { throw 'Informe -JdkHome com um JDK 21 completo para Windows x64.' }
+if (-not $JdkHome -or -not (Test-Path (Join-Path $JdkHome 'bin\jlink.exe'))) { throw 'Informe -JdkHome com um JDK 17 completo para Windows x64.' }
 $release = Get-Content (Join-Path $JdkHome 'release') -Raw
-if ($release -notmatch 'JAVA_VERSION="21[.\"]' -or $release -notmatch 'OS_ARCH="(?:amd64|x86_64)"') { throw 'Use JDK 21 x64 para Windows.' }
+if ($release -notmatch 'JAVA_VERSION="17[.\"]' -or $release -notmatch 'OS_ARCH="(?:amd64|x86_64)"') { throw 'Use JDK 17 x64 para Windows.' }
 $env:JAVA_HOME = $JdkHome
 $env:Path = (Join-Path $JdkHome 'bin') + ';' + $env:Path
 Push-Location (Join-Path $repo 'app')

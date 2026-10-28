@@ -69,12 +69,12 @@ A IA não determina autoria: naturalidade textual continua sendo uma sugestão e
 
 ## Gerar o ZIP no Windows
 
-Pré-requisitos da máquina de build: Git, PowerShell 5.1+ e **JDK 21 completo para
+Pré-requisitos da máquina de build: Git, PowerShell 5.1+ e **JDK 17 completo para
 Windows x64** (por exemplo Eclipse Temurin). Internet para Maven Central. Use uma
 cópia limpa da branch `feat/windows-local`; não coloque chaves nela.
 
 ```powershell
-$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21...'
+$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-17...'
 .\packaging\windows\Build-Windows.ps1 -JdkHome $env:JAVA_HOME
 ```
 
@@ -116,7 +116,7 @@ aplicável; uso comercial requer autorização do titular.
 
 ## Desenvolvimento e testes
 
-Linux/macOS, JDK completo 21:
+Linux/macOS, JDK completo 17:
 
 ```sh
 cd app
