@@ -68,9 +68,8 @@ public class LocalController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
         } catch (Exception e) {
-            // Provider responses can contain credentials; never return or log their body.
             return ResponseEntity.status(502).body(Map.of("erro",
-                    "Falha na conexão. Verifique internet, chave, modelo, saldo e permissões do provedor."));
+                    IaConnectionException.from(e).getMessage()));
         }
     }
 

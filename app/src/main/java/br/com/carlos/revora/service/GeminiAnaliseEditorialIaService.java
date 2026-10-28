@@ -11,8 +11,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -121,7 +119,11 @@ public class GeminiAnaliseEditorialIaService
     }
 
     public void testarConexao() throws Exception {
-        completar("Responda apenas OK.", "Teste de conexão.", false);
+        try {
+            completar("Responda apenas OK.", "Teste de conexão.", false);
+        } catch (Exception e) {
+            throw IaConnectionException.from(e);
+        }
     }
 
     private String completar(String instrucoes, String entrada, boolean json) throws Exception {
@@ -153,14 +155,25 @@ public class GeminiAnaliseEditorialIaService
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(timeoutSeconds))
                 .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .header("User-Agent", "Revora/0.2.1")
                 .header(gemini ? "x-goog-api-key" : "Authorization", gemini ? apiKey : "Bearer " + apiKey)
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                 .build();
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() < 200 || response.statusCode() >= 300)
-            throw new IOException("Provedor de IA retornou HTTP " + response.statusCode()
-                    + ". Verifique chave, modelo, saldo e permissões.");
-        JsonNode root = objectMapper.readTree(response.body());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            String code = "";
+            try {
+                code = objectMapper.readTree(response.body()).path("error").path("code").asText("");
+            } catch (Exception ignored) { /* Non-JSON error pages must never reach the UI. */ }
+            throw IaConnectionException.http(response.statusCode(), code);
+        }
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(response.body());
+        } catch (Exception e) {
+            throw IaConnectionException.invalidResponse();
+        }
         String text;
         if (gemini) {
             StringBuilder parts = new StringBuilder();
@@ -169,7 +182,7 @@ public class GeminiAnaliseEditorialIaService
             }
             text = parts.toString();
         } else text = root.path("choices").path(0).path("message").path("content").asText("");
-        if (text.isBlank()) throw new IOException("O provedor respondeu sem conteúdo textual.");
+        if (text.isBlank()) throw IaConnectionException.invalidResponse();
         return text;
     }
 

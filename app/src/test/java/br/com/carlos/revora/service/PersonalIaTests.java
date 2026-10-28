@@ -53,6 +53,7 @@ class PersonalIaTests {
                     default -> "openrouter.ai";
                 };
                 assertEquals(expectedHost, request.uri().getHost());
+                assertEquals("Revora/0.2.1", request.headers().firstValue("User-Agent").orElseThrow());
                 assertEquals(provider.equals("gemini") ? "key-" + provider : "Bearer key-" + provider,
                         request.headers().firstValue(provider.equals("gemini") ? "x-goog-api-key" : "Authorization").orElseThrow());
                 assertFalse(request.uri().toString().contains("key-"));
@@ -90,4 +91,52 @@ class PersonalIaTests {
         assertTrue(error.getMessage().contains("401"));
         assertFalse(error.getMessage().contains("secret"));
     }
+    @Test @SuppressWarnings("unchecked") void providerFailuresExposeOnlySafeDiagnostics() throws Exception {
+        for (int status : List.of(400, 401, 402, 403, 404, 422, 429, 500, 503)) {
+            var client = mock(HttpClient.class);
+            HttpResponse<String> response = mock(HttpResponse.class);
+            when(response.statusCode()).thenReturn(status);
+            when(response.body()).thenReturn("<html>secret-key-echo</html>");
+            when(client.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+            var service = new GeminiAnaliseEditorialIaService(mock(GuiaEditorialService.class), "groq", "model", "secret", client);
+            var error = assertThrows(IaConnectionException.class, service::testarConexao);
+            assertTrue(error.getMessage().contains("HTTP " + status));
+            assertFalse(error.getMessage().contains("secret"));
+            if (status == 429) assertTrue(error.getMessage().contains("quota"));
+        }
+        var model = IaConnectionException.http(400, "model_decommissioned");
+        assertTrue(model.getMessage().contains("descontinuado"));
+        assertFalse(IaConnectionException.http(400, "secret-key-echo").getMessage().contains("secret"));
+    }
+
+    @Test @SuppressWarnings("unchecked") void networkErrorsDoNotExposeOriginalExceptionMessages() throws Exception {
+        var unresolved = new java.net.ConnectException("secret");
+        unresolved.initCause(new java.net.UnknownHostException("secret"));
+        assertTrue(IaConnectionException.from(unresolved).getMessage().contains("DNS"));
+        for (Exception failure : List.of(new HttpTimeoutException("secret"),
+                new javax.net.ssl.SSLHandshakeException("secret"),
+                new java.net.UnknownHostException("secret"), new java.net.ConnectException("secret"))) {
+            var client = mock(HttpClient.class);
+            when(client.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenThrow(failure);
+            var service = new GeminiAnaliseEditorialIaService(mock(GuiaEditorialService.class), "groq", "model", "secret", client);
+            var error = assertThrows(IaConnectionException.class, service::testarConexao);
+            assertFalse(error.getMessage().contains("secret"));
+            if (failure instanceof javax.net.ssl.SSLHandshakeException) assertTrue(error.getMessage().contains("certificado"));
+            if (failure instanceof java.net.UnknownHostException) assertTrue(error.getMessage().contains("DNS"));
+            if (failure instanceof HttpTimeoutException) assertTrue(error.getMessage().contains("prazo"));
+        }
+    }
+
+    @Test @SuppressWarnings("unchecked") void malformedSuccessfulResponseGetsSafeDiagnostic() throws Exception {
+        var client = mock(HttpClient.class);
+        HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn("secret malformed response");
+        when(client.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        var service = new GeminiAnaliseEditorialIaService(mock(GuiaEditorialService.class), "groq", "model", "secret", client);
+        var error = assertThrows(IaConnectionException.class, service::testarConexao);
+        assertTrue(error.getMessage().contains("resposta textual válida"));
+        assertFalse(error.getMessage().contains("secret"));
+    }
+
 }

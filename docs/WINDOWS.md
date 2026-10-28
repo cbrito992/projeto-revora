@@ -7,9 +7,9 @@ ativa a interface e API desktop e desativa a rota de processamento por URLs remo
 
 ## Usar o pacote
 
-1. Baixe `Revora-0.2.0-windows-x64.zip` e o arquivo `.sha256` da distribuição.
+1. Baixe `Revora-0.2.1-windows-x64.zip` e o arquivo `.sha256` da distribuição.
 2. Confira a integridade no PowerShell:
-   `Get-FileHash .\Revora-0.2.0-windows-x64.zip -Algorithm SHA256`.
+   `Get-FileHash .\Revora-0.2.1-windows-x64.zip -Algorithm SHA256`.
    Compare com o hash publicado pelo responsável pela distribuição.
 3. Extraia **todo** o ZIP para uma pasta do seu usuário, por exemplo
    `Documentos\Revora`. Não execute de dentro do ZIP nem da prévia do Google Drive.
@@ -62,8 +62,9 @@ sua conta antes de enviar documentos confidenciais. Destinos usados:
 | Groq | `api.groq.com` |
 | OpenRouter | `openrouter.ai` |
 
-O teste informa falha para chave inválida, modelo sem acesso, falta de saldo,
-timeout ou erro de rede sem expor o corpo retornado pelo provedor. Uma falha de IA
+O teste diferencia chave recusada, modelo sem acesso/descontinuado, falta de saldo,
+limites de uso, timeout e falhas de rede/certificado. Em recusas HTTP, mostra o
+código de status sem expor a chave ou o corpo retornado pelo provedor. Uma falha de IA
 durante a revisão mantém ortografia e template e acrescenta um aviso no relatório.
 A IA não determina autoria: naturalidade textual continua sendo uma sugestão editorial.
 
@@ -81,7 +82,7 @@ $env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-17...'
 O script executa `mvnw.cmd clean verify` (sem pular testes), gera um runtime Windows
 com `jlink`, inclui somente JAR, runtime, inicializadores, licença e instruções,
 e faz um smoke test HTTP de interface e revisão DOCX/Hunspell usando **o runtime empacotado**. Somente depois gera
-`dist\Revora-0.2.0-windows-x64.zip` e seu `.sha256`. O staging é temporário; arquivos
+`dist\Revora-0.2.1-windows-x64.zip` e seu `.sha256`. O staging é temporário; arquivos
 do usuário, fontes, logs, `.env`, chaves e configurações pessoais não são copiados.
 `dist/` é ignorado pelo Git. Use `-Version 0.2.1` para a próxima versão;
 um ZIP existente não é sobrescrito. O pacote é portátil, não um MSI/EXE assinado.
@@ -102,7 +103,7 @@ Windows nem abertura do navegador Windows.
 ## Distribuir pelo Google Drive
 
 1. Gere e valide o pacote no Windows ou obtenha o artifact de um CI bem-sucedido.
-2. Crie uma pasta de versão no Drive, por exemplo `Revora/0.2.0/`.
+2. Crie uma pasta de versão no Drive, por exemplo `Revora/0.2.1/`.
 3. Envie somente o ZIP final, `.sha256` e estas instruções. Não envie o checkout,
    pastas de usuário ou chaves. Não edite o ZIP depois de calcular o hash.
 4. Defina acesso de visualização/download para os revisores desejados. Teste o

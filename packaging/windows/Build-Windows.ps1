@@ -1,7 +1,7 @@
 param(
     [string]$JdkHome = $env:JAVA_HOME,
     [string]$OutputDirectory = '',
-    [string]$Version = '0.2.0'
+    [string]$Version = '0.2.1'
 )
 $ErrorActionPreference = 'Stop'
 if ($env:OS -ne 'Windows_NT') { throw 'Gere este pacote no Windows com JDK 17 x64.' }
