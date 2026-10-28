@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+@org.springframework.context.annotation.Profile("!local")
 @RestController
 @RequestMapping("/api")
 public class DocumentoController {

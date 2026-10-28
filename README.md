@@ -1,5 +1,9 @@
 # Revora
 
+## Versão local para Windows
+
+A branch `feat/windows-local` adiciona processamento DOCX local, interface no navegador e configuração pessoal de Gemini, Groq e OpenRouter, sem Vercel Blob. Veja [como gerar, usar e distribuir o pacote Windows](docs/WINDOWS.md).
+
 **Revora** é uma aplicação web para revisão de documentos `.docx`, combinando validações locais, comparação com template e análise editorial assistida por IA.
 
 O objetivo do projeto é oferecer uma revisão rápida e visual, preservando o documento original e destacando possíveis pontos de atenção para que o revisor humano tome a decisão final.

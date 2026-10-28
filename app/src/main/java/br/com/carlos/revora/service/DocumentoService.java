@@ -162,6 +162,12 @@ public class DocumentoService {
             InputStream documentoStream
     ) throws Exception {
 
+        return processarEModificarDocumento(templateStream, documentoStream, analiseEditorialIaService);
+    }
+
+    public synchronized byte[] processarEModificarDocumento(
+            InputStream templateStream, InputStream documentoStream,
+            AnaliseEditorialIaService analise) throws Exception {
         carregarHunspell();
 
 
@@ -301,7 +307,7 @@ public class DocumentoService {
             try {
 
                 resultado =
-                        analiseEditorialIaService.analisar(
+                        analise.analisar(
                                 contexto.trechos()
                         );
 

@@ -1,0 +1,27 @@
+name: Windows local
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/windows-local]
+  pull_request:
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: app/pom.xml
+      - name: Testar e empacotar com runtime Windows
+        shell: pwsh
+        run: ./packaging/windows/Build-Windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Revora-windows-x64
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error

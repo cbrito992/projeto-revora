@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Revora · No seu ritmo, no seu computador</title><link rel="icon" href="chameleon.svg" type="image/svg+xml"><link rel="stylesheet" href="local.css"></head>
+<body><div class="page">
+<header><img src="chameleon.svg" width="88" height="88" alt="Camaleão laranja em forma de R"><div><h1>revora<span>local</span></h1><p>Um novo olhar para o seu texto.</p></div><span class="badge">WINDOWS · LOCAL</span></header>
+<main><section class="card"><p class="eyebrow">01 / SEUS DOCUMENTOS</p><h2>Revise com clareza.</h2>
+<p>Ortografia, padrões do template e sugestões editoriais em um novo DOCX. Os originais permanecem intactos.</p>
+<form id="review"><label for="template">Template de referência</label><input id="template" type="file" accept=".docx" required>
+<label for="documento">Documento para revisar</label><input id="documento" type="file" accept=".docx" required>
+<p class="hint">Até 50 MB por arquivo. Processamento no seu computador, sem Vercel Blob.</p>
+<button id="submit" type="submit">Revisar e baixar DOCX <span aria-hidden="true">↗</span></button></form>
+<p id="reviewStatus" role="status" aria-live="polite"></p><a id="download" hidden>Baixar novamente o documento revisado</a>
+<div class="legend"><span>🔴 Ortografia</span><span>🟡 Template</span><span>🔵 ABNT</span><span>🟣 Naturalidade</span></div>
+<p class="hint">As marcações e o relatório orientam a revisão. A decisão final é sua.</p></section>
+<aside class="card"><p class="eyebrow">02 / SEU ASSISTENTE</p><h2>IA do seu jeito.</h2>
+<label class="toggle"><input id="enabled" type="checkbox"> Usar análise editorial por IA</label>
+<p class="hint">Opcional. Ao ativar, trechos do documento serão enviados ao provedor escolhido, sujeitos às políticas e tarifas dele. Ortografia e template funcionam sem internet.</p>
+<label for="provider">Provedor</label><select id="provider"><option value="gemini">Google Gemini</option><option value="groq">Groq</option><option value="openrouter">OpenRouter</option></select>
+<label for="model">Modelo</label><input id="model" type="text" maxlength="200" placeholder="Identificador do modelo">
+<p class="hint">Use o identificador disponível na sua conta. O teste confirma o acesso a esse modelo.</p>
+<label for="apiKey">Sua chave pessoal</label><input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Cole sua chave para esta sessão">
+<p class="hint">A chave fica apenas na memória desta página e das requisições. Não é salva no disco nem incluída no pacote. Limpe-a ao terminar.</p>
+<div class="actions"><button id="test" class="secondary" type="button">Testar conexão</button><button id="clear" class="text" type="button">Limpar chave</button></div>
+<p id="aiStatus" role="status" aria-live="polite"></p></aside></main>
+<footer>Revora · Revisão humana, com novas perspectivas. <span>Para encerrar, pressione Enter na janela do inicializador.</span></footer>
+</div><script src="local.js"></script></body></html>

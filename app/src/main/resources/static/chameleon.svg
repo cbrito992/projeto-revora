@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+<title id="title">Revora: camaleão laranja em forma de R</title>
+<rect width="100" height="100" rx="25" fill="#fff0df"/>
+<path d="M29 79V35c0-16 12-23 28-22 16 1 27 12 24 25-2 12-14 17-31 17l28 25" fill="none" stroke="#e66d20" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M29 62C7 57 7 88 26 88c14 0 17-18 5-18-6 0-7 8-2 8" fill="none" stroke="#e66d20" stroke-width="7" stroke-linecap="round"/>
+<path d="m48 16 6-8 6 9 7-4 3 9" fill="#e66d20"/>
+<circle cx="69" cy="28" r="8" fill="#fff9eb"/><circle cx="71" cy="27" r="4" fill="#33352a"/>
+<path d="M75 42h12m-2-1 6-3" stroke="#9d3e12" stroke-width="3" fill="none" stroke-linecap="round"/>
+<path d="m29 78-7 3m55-2 7 3" stroke="#e66d20" stroke-width="6" stroke-linecap="round"/>
+</svg>
