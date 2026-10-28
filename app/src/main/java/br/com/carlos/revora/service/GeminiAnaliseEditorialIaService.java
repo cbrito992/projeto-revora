@@ -11,14 +11,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-
-import java.nio.charset.StandardCharsets;
 
 import java.time.Duration;
 
@@ -69,6 +65,9 @@ public class GeminiAnaliseEditorialIaService
     private final GuiaEditorialService guiaEditorialService;
 
 
+    private static final HttpClient DEFAULT_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(20)).build();
+
     private final HttpClient httpClient;
 
 
@@ -88,6 +87,7 @@ public class GeminiAnaliseEditorialIaService
     private int timeoutSeconds;
 
 
+    @org.springframework.beans.factory.annotation.Autowired
     public GeminiAnaliseEditorialIaService(
             GuiaEditorialService guiaEditorialService
     ) {
@@ -96,15 +96,95 @@ public class GeminiAnaliseEditorialIaService
                 guiaEditorialService;
 
 
-        this.httpClient =
-                HttpClient
-                        .newBuilder()
-                        .connectTimeout(
-                                Duration.ofSeconds(20)
-                        )
-                        .build();
+        this.httpClient = DEFAULT_CLIENT;
     }
 
+
+    private String provider = "gemini";
+
+    public GeminiAnaliseEditorialIaService(GuiaEditorialService guia, String provider,
+            String model, String apiKey) {
+        this(guia, provider, model, apiKey, DEFAULT_CLIENT);
+    }
+
+    GeminiAnaliseEditorialIaService(GuiaEditorialService guia, String provider,
+            String model, String apiKey, HttpClient client) {
+        this.guiaEditorialService = guia;
+        this.httpClient = client;
+        this.provider = provider;
+        this.model = model;
+        this.apiKey = apiKey;
+        this.enabled = true;
+        this.timeoutSeconds = 90;
+    }
+
+    public void testarConexao() throws Exception {
+        try {
+            completar("Responda apenas OK.", "Teste de conexão.", false);
+        } catch (Exception e) {
+            throw IaConnectionException.from(e);
+        }
+    }
+
+    private String completar(String instrucoes, String entrada, boolean json) throws Exception {
+        boolean gemini = provider.equals("gemini");
+        String url = switch (provider) {
+            case "gemini" -> GEMINI_URL_BASE + model + ":generateContent";
+            case "groq" -> "https://api.groq.com/openai/v1/chat/completions";
+            case "openrouter" -> "https://openrouter.ai/api/v1/chat/completions";
+            default -> throw new IllegalArgumentException("Provedor inválido.");
+        };
+        Map<String, Object> payload = new LinkedHashMap<>();
+        if (gemini) {
+            payload.put("systemInstruction", Map.of("parts", List.of(Map.of("text", instrucoes))));
+            payload.put("contents", List.of(Map.of("parts", List.of(Map.of("text", entrada)))));
+            Map<String, Object> generation = new LinkedHashMap<>();
+            generation.put("temperature", 0.2);
+            if (json) {
+                generation.put("responseMimeType", "application/json");
+                generation.put("responseJsonSchema", criarSchema());
+            }
+            payload.put("generationConfig", generation);
+        } else {
+            payload.put("model", model);
+            payload.put("messages", List.of(Map.of("role", "system", "content", instrucoes),
+                    Map.of("role", "user", "content", entrada)));
+            payload.put("temperature", 0.2);
+            if (json) payload.put("response_format", Map.of("type", "json_object"));
+        }
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .header("User-Agent", "Revora/0.2.1")
+                .header(gemini ? "x-goog-api-key" : "Authorization", gemini ? apiKey : "Bearer " + apiKey)
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                .build();
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            String code = "";
+            try {
+                code = objectMapper.readTree(response.body()).path("error").path("code").asText("");
+            } catch (Exception ignored) { /* Non-JSON error pages must never reach the UI. */ }
+            throw IaConnectionException.http(response.statusCode(), code);
+        }
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(response.body());
+        } catch (Exception e) {
+            throw IaConnectionException.invalidResponse();
+        }
+        String text;
+        if (gemini) {
+            StringBuilder parts = new StringBuilder();
+            for (JsonNode part : root.path("candidates").path(0).path("content").path("parts")) {
+                if (!part.path("thought").asBoolean(false)) parts.append(part.path("text").asText(""));
+            }
+            text = parts.toString();
+        } else text = root.path("choices").path(0).path("message").path("content").asText("");
+        if (text.isBlank()) throw IaConnectionException.invalidResponse();
+        return text;
+    }
 
     /**
      * =========================================================
@@ -201,196 +281,11 @@ public class GeminiAnaliseEditorialIaService
             List<TrechoEditorial> trechos
     ) throws Exception {
 
-        String requisicaoJson =
-                criarRequisicao(
-                        trechos
-                );
-
-
-        String url =
-                GEMINI_URL_BASE
-                        +
-                model
-                        +
-                ":generateContent";
-
-
-        HttpRequest request =
-                HttpRequest
-                        .newBuilder()
-                        .uri(
-                                URI.create(
-                                        url
-                                )
-                        )
-                        .timeout(
-                                Duration.ofSeconds(
-                                        timeoutSeconds
-                                )
-                        )
-                        .header(
-                                "Content-Type",
-                                "application/json"
-                        )
-                        .header(
-                                "x-goog-api-key",
-                                apiKey
-                        )
-                        .POST(
-                                HttpRequest
-                                        .BodyPublishers
-                                        .ofString(
-                                                requisicaoJson,
-                                                StandardCharsets.UTF_8
-                                        )
-                        )
-                        .build();
-
-
-        HttpResponse<String> response =
-                httpClient.send(
-                        request,
-                        HttpResponse
-                                .BodyHandlers
-                                .ofString(
-                                        StandardCharsets.UTF_8
-                                )
-                );
-
-
-        if (
-                response.statusCode() < 200
-                        ||
-                response.statusCode() >= 300
-        ) {
-
-            throw criarErroApi(
-                    response.statusCode(),
-                    response.body()
-            );
-        }
-
-
-        ResultadoAnaliseEditorial resultado =
-                interpretarResposta(
-                        response.body()
-                );
-
-
-        /*
-         * A IA não é considerada fonte absoluta.
-         *
-         * Antes de devolver as ocorrências ao
-         * DocumentoService, validamos:
-         *
-         * - se o ID realmente existe;
-         * - se a evidência existe literalmente;
-         * - se a confiança é válida.
-         */
-        return validarResultado(
-                trechos,
-                resultado
-        );
-    }
-
-
-    /**
-     * =========================================================
-     * REQUISIÇÃO GEMINI
-     * =========================================================
-     */
-    private String criarRequisicao(
-            List<TrechoEditorial> trechos
-    ) throws Exception {
-
-        Map<String, Object> requisicao =
-                new LinkedHashMap<>();
-
-
-        requisicao.put(
-                "systemInstruction",
-                Map.of(
-                        "parts",
-                        List.of(
-                                Map.of(
-                                        "text",
-                                        criarInstrucoes()
-                                )
-                        )
-                )
-        );
-
-
-        requisicao.put(
-                "contents",
-                List.of(
-                        Map.of(
-                                "role",
-                                "user",
-
-                                "parts",
-                                List.of(
-                                        Map.of(
-                                                "text",
-                                                criarEntrada(
-                                                        trechos
-                                                )
-                                        )
-                                )
-                        )
-                )
-        );
-
-
-        Map<String, Object> generationConfig =
-                new LinkedHashMap<>();
-
-
-        /*
-         * Obriga o modelo a responder JSON.
-         */
-        generationConfig.put(
-                "responseMimeType",
-                "application/json"
-        );
-
-
-        /*
-         * Schema que precisa corresponder
-         * aos records Java do Revora.
-         */
-        generationConfig.put(
-                "responseJsonSchema",
-                criarSchema()
-        );
-
-
-        /*
-         * Menos criatividade é melhor para
-         * revisão editorial.
-         */
-        generationConfig.put(
-                "temperature",
-                0.2
-        );
-
-
-        generationConfig.put(
-                "maxOutputTokens",
-                8192
-        );
-
-
-        requisicao.put(
-                "generationConfig",
-                generationConfig
-        );
-
-
-        return objectMapper
-                .writeValueAsString(
-                        requisicao
-                );
+        String instrucoes = criarInstrucoes() + "\nRetorne somente JSON com o schema: "
+                + objectMapper.writeValueAsString(criarSchema());
+        String texto = completar(instrucoes, criarEntrada(trechos), true);
+        ResultadoAnaliseEditorial resultado = objectMapper.readValue(texto, ResultadoAnaliseEditorial.class);
+        return validarResultado(trechos, resultado);
     }
 
 
@@ -705,123 +600,6 @@ public class GeminiAnaliseEditorialIaService
 
     /**
      * =========================================================
-     * RESPOSTA GEMINI
-     * =========================================================
-     */
-    private ResultadoAnaliseEditorial interpretarResposta(
-            String corpo
-    ) throws Exception {
-
-        JsonNode root =
-                objectMapper.readTree(
-                        corpo
-                );
-
-
-        JsonNode candidates =
-                root.path(
-                        "candidates"
-                );
-
-
-        if (
-                !candidates.isArray()
-                        ||
-                candidates.isEmpty()
-        ) {
-
-            String motivo =
-                    root
-                            .path(
-                                    "promptFeedback"
-                            )
-                            .path(
-                                    "blockReason"
-                            )
-                            .asText();
-
-
-            if (motivo.isBlank()) {
-
-                motivo =
-                        "nenhum candidato retornado";
-            }
-
-
-            throw new IOException(
-                    "O Gemini não retornou uma análise. Motivo: "
-                            +
-                    motivo
-            );
-        }
-
-
-        JsonNode parts =
-                candidates
-                        .get(0)
-                        .path(
-                                "content"
-                        )
-                        .path(
-                                "parts"
-                        );
-
-
-        if (
-                !parts.isArray()
-                        ||
-                parts.isEmpty()
-        ) {
-
-            throw new IOException(
-                    "O Gemini respondeu sem conteúdo textual."
-            );
-        }
-
-
-        StringBuilder textoResposta =
-                new StringBuilder();
-
-
-        for (
-                JsonNode part :
-                parts
-        ) {
-
-            String texto =
-                    part
-                            .path(
-                                    "text"
-                            )
-                            .asText();
-
-
-            if (!texto.isBlank()) {
-
-                textoResposta.append(
-                        texto
-                );
-            }
-        }
-
-
-        if (textoResposta.isEmpty()) {
-
-            throw new IOException(
-                    "O Gemini não retornou o JSON da análise editorial."
-            );
-        }
-
-
-        return objectMapper.readValue(
-                textoResposta.toString(),
-                ResultadoAnaliseEditorial.class
-        );
-    }
-
-
-    /**
-     * =========================================================
      * VALIDAÇÃO DAS OCORRÊNCIAS
      * =========================================================
      */
@@ -1070,65 +848,5 @@ public class GeminiAnaliseEditorialIaService
     }
 
 
-    /**
-     * =========================================================
-     * ERROS DA API
-     * =========================================================
-     */
-    private IOException criarErroApi(
-            int status,
-            String corpo
-    ) {
 
-        String mensagem =
-                "";
-
-
-        try {
-
-            JsonNode root =
-                    objectMapper.readTree(
-                            corpo
-                    );
-
-
-            mensagem =
-                    root
-                            .path(
-                                    "error"
-                            )
-                            .path(
-                                    "message"
-                            )
-                            .asText();
-
-        } catch (Exception ignored) {
-
-            /*
-             * Não fazemos nada.
-             */
-        }
-
-
-        if (
-                mensagem == null
-                        ||
-                mensagem.isBlank()
-        ) {
-
-            mensagem =
-                    "erro não detalhado pela API";
-        }
-
-
-        return new IOException(
-                "Erro na Gemini API. HTTP "
-                        +
-                status
-                        +
-                ": "
-                        +
-                mensagem
-        );
-    }
 }
